@@ -1,7 +1,7 @@
 // Dynamic API URL switching between localhost and production
 const API_URL = window.location.hostname === "localhost" 
   ? "http://localhost:5000/api" 
-  : "https://wobs-web-pos-backend.vercel.app/api";
+  : "/api";
 
 const MIN_DELIVERY_AMOUNT = 150.00;
 
