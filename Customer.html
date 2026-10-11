@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WOBS - Customer Ordering & POS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo"></div>
+        <div>
+          <h1>WOBS Store</h1>
+          <p>Laura Sari-Sari Store Online Ordering</p>
+        </div>
+      </div>
+      <div>
+        <a href="Admin.html" class="tab-btn" style="text-decoration:none;"> Admin Access</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <div class="pos-layout">
+      
+      <!-- CATALOG & SCANNER SECTION -->
+      <div class="pos-catalog-section">
+
+        <!-- Camera Navigation Button -->
+        <div class="card mb-3" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong> Camera Barcode Scanner</strong>
+            <p class="text-muted" style="font-size: 11px;">Use your phone camera to scan products</p>
+          </div>
+          <a href="Camera.html" class="btn btn-primary btn-sm" style="text-decoration: none;">Launch Scanner Page</a>
+        </div>
+
+        <!-- Manual Barcode Input Box -->
+        <div class="barcode-scan-box card">
+          <label for="pos-barcode-scanner"><strong> Manual Barcode Input:</strong></label>
+          <div class="scanner-input-group">
+            <input type="text" id="pos-barcode-scanner" placeholder="Scan hardware barcode or type here..." class="form-input" autofocus>
+            <button onclick="handleBarcodeScan(event)" class="btn btn-primary">Scan Item</button>
+          </div>
+          <p id="barcode-scan-msg" class="scan-msg"></p>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" id="pos-search" oninput="renderPosCatalog()" placeholder="Search item name or barcode..." class="form-input search-input">
+          <div id="category-pills" class="category-pills"></div>
+        </div>
+
+        <div id="pos-catalog" class="catalog-grid"></div>
+      </div>
+
+      <!-- CART SECTION -->
+      <div class="pos-cart-section">
+        <div class="cart-card">
+          <div class="cart-header">
+            <h2>Current Order</h2>
+            <button onclick="clearCart()" class="btn-link text-danger">Clear All</button>
+          </div>
+
+          <div id="cart-items" class="cart-items-list"></div>
+
+          <div class="cart-footer">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span id="cart-subtotal">₱0.00</span>
+            </div>
+            <div class="summary-row text-primary">
+              <span>Payment Method</span>
+              <strong>GCash Express</strong>
+            </div>
+            <hr>
+            <div class="summary-row total-row">
+              <span>Total Amount</span>
+              <span id="cart-total" class="total-price">₱0.00</span>
+            </div>
+
+            <!-- Minimum Delivery Requirement Notice -->
+            <p id="min-delivery-msg" style="font-size: 11px; color: #f87171; text-align: center; margin: 8px 0 4px 0; font-weight: 500;">
+              ⚠️ Minimum order for delivery is ₱150.00
+            </p>
+
+            <button id="btn-checkout" onclick="openGCashModal()" disabled class="btn btn-success btn-block">
+              Proceed to Checkout &amp; Delivery
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- MODAL: CHECKOUT & DELIVERY -->
+  <div id="modal-gcash" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>GCash Payment &amp; Delivery Details</h3>
+        <button onclick="closeGCashModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="amount-box">
+          <p>Total Amount to Pay</p>
+          <h2 id="gcash-modal-amount">₱0.00</h2>
+        </div>
+        <div class="account-info">
+          <p><strong>Laura Sari-Sari Store</strong></p>
+          <p>Send GCash to: <strong>0917-123-4567</strong></p>
+        </div>
+
+        <!-- Full Name Field -->
+        <div class="form-group">
+          <label for="cust-name">Full Name *</label>
+          <input type="text" id="cust-name" placeholder="e.g. Juan Dela Cruz" class="form-input" required>
+        </div>
+
+        <!-- City Dropdown -->
+        <div class="form-group">
+          <label for="cust-city">City / Municipality *</label>
+          <select id="cust-city" class="form-select" onchange="updateBarangayOptions()" required>
+            <option value="">Select City / Municipality</option>
+            <option value="Marilao">Marilao</option>
+            <option value="Meycauayan">Meycauayan</option>
+            <option value="Bocaue">Bocaue</option>
+          </select>
+        </div>
+
+        <!-- Barangay Dropdown -->
+        <div class="form-group">
+          <label for="cust-brgy">Barangay *</label>
+          <select id="cust-brgy" class="form-select" required disabled>
+            <option value="">Select City First</option>
+          </select>
+        </div>
+
+        <!-- Street Address Field -->
+        <div class="form-group">
+          <label for="cust-street">House No., Building, Street Name *</label>
+          <input type="text" id="cust-street" placeholder="e.g. #123 Macarthur Highway" class="form-input" required>
+        </div>
+
+        <!-- GCash Screenshot File Input -->
+        <div class="form-group">
+          <label for="gcash-proof-input">Upload Proof of Payment (Screenshot) *</label>
+          <input type="file" id="gcash-proof-input" accept="image/*" class="form-input" required>
+          <small class="text-muted" style="font-size: 11px; display: block; margin-top: 4px;">
+            Supported formats: PNG, JPG, JPEG (Max 5MB)
+          </small>
+        </div>
+
+        <div class="modal-footer">
+          <button onclick="closeGCashModal()" class="btn btn-secondary">Cancel</button>
+          <button onclick="processGCashPayment()" class="btn btn-primary">Confirm &amp; Place Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECEIPT -->
+  <div id="modal-receipt" class="modal-overlay hidden">
+    <div class="modal-card receipt-card">
+      <div id="printable-receipt" class="receipt-body">
+        <div class="receipt-header">
+          <h2>Laura Sari-Sari Store</h2>
+          <p>Poblacion, Marilao, Bulacan</p>
+          <p>GCash Express Verified Order</p>
+        </div>
+        <div class="receipt-details">
+          <p>Txn ID: <strong id="receipt-id">#WOBS-000000</strong></p>
+          <p>Date/Time: <span id="receipt-date">--</span></p>
+          <p>Deliver To: <strong id="receipt-address">N/A</strong></p>
+          <p>Payment: <strong id="receipt-gcash-ref">Verified Screenshot</strong></p>
+        </div>
+        <div class="receipt-items">
+          <p><strong>Itemized Breakdown:</strong></p>
+          <div id="receipt-items-list"></div>
+        </div>
+        <div class="receipt-total">
+          <div class="summary-row">
+            <span>Total Paid:</span>
+            <strong id="receipt-total-amount">₱0.00</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer no-print">
+        <button onclick="window.print()" class="btn btn-primary">Print Receipt</button>
+        <button onclick="closeReceiptModal()" class="btn btn-secondary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="customer.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WOBS - Camera Barcode Scanner</title>
+  
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    #interactive video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 1rem;
+    }
+    #interactive canvas {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4">
+
+  <header class="w-full max-w-md flex items-center justify-between pb-4 border-b border-slate-700">
+    <div class="flex items-center gap-2">
+      <div class="bg-blue-600 p-2 rounded-xl text-white">
+        <i class="fa-solid fa-barcode text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold">WOBS Scanner</h1>
+        <p class="text-xs text-slate-400">Scan product barcode</p>
+      </div>
+    </div>
+    <a href="Customer.html" class="btn btn-secondary btn-sm" style="text-decoration:none;"> Back to Store</a>
+  </header>
+
+  <main class="w-full max-w-md my-auto flex flex-col items-center">
+    <div id="cameraCard" class="w-full aspect-square bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative shadow-2xl flex items-center justify-center">
+      <div id="interactive" class="w-full h-full relative"></div>
+      
+      <div id="idleOverlay" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950 z-20">
+        <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-3">
+          <i class="fa-solid fa-camera text-2xl"></i>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-300">Camera Offline</h3>
+        <p class="text-xs text-slate-500 mt-1">Tap below to activate camera scanning.</p>
+      </div>
+    </div>
+
+    <div class="w-full mt-4 flex gap-2">
+      <button id="btnToggleCamera" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+        <i class="fa-solid fa-power-off"></i>
+        <span>Start Camera</span>
+      </button>
+    </div>
+
+    <p id="camera-status-msg" class="scan-msg mt-3 text-center text-xs font-medium min-h-[20px]"></p>
+  </main>
+
+  <footer class="text-xs text-slate-500 text-center py-2">
+    <p>© 2026 WOBS POS | Laura Sari-Sari Store</p>
+  </footer>
+
+  <script src="camera.js"></script>
+</body>
+</html>
