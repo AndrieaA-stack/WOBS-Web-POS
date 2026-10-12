@@ -1,69 +1,513 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WOBS - Camera Barcode Scanner</title>
-  
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Barcode & OCR Scanner</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ZXing Barcode Decoder Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+    <!-- Tesseract.js OCR Library -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- JsBarcode Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <style>
-    #interactive video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-      border-radius: 1rem;
-    }
-    #interactive canvas {
-      display: none !important;
-    }
-  </style>
+    <style>
+        /* Static corner markers for camera viewfinder */
+        .reticle-corner {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-color: #0284c7;
+            border-style: solid;
+        }
+
+        /* Pulse success glow */
+        @keyframes scan-flash {
+            0% { opacity: 0.8; background-color: rgba(16, 185, 129, 0.3); }
+            100% { opacity: 0; background-color: transparent; }
+        }
+        .flash-success {
+            animation: scan-flash 0.5s ease-out forwards;
+        }
+
+        /* Clean scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
-  <header class="w-full max-w-md flex items-center justify-between pb-4 border-b border-slate-700">
-    <div class="flex items-center gap-2">
-      <div class="bg-blue-600 p-2 rounded-xl text-white">
-        <i class="fa-solid fa-barcode text-lg"></i>
-      </div>
-      <div>
-        <h1 class="text-base font-bold">WOBS Scanner</h1>
-        <p class="text-xs text-slate-400">Scan product barcode</p>
-      </div>
-    </div>
-    <a href="Customer.html" class="btn btn-secondary btn-sm" style="text-decoration:none;"> Back to Store</a>
-  </header>
+    <!-- Application Header -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 px-4 py-3 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20">
+                    <i class="fa-solid fa-barcode text-white text-xl font-bold"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent leading-tight">
+                        ScanVision Pro
+                    </h1>
+                    <p class="text-xs text-slate-500">Universal Barcode & OCR Reader</p>
+                </div>
+            </div>
 
-  <main class="w-full max-w-md my-auto flex flex-col items-center">
-    <div id="cameraCard" class="w-full aspect-square bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative shadow-2xl flex items-center justify-center">
-      <div id="interactive" class="w-full h-full relative"></div>
-      
-      <div id="idleOverlay" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950 z-20">
-        <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-3">
-          <i class="fa-solid fa-camera text-2xl"></i>
+            <!-- Global Controls Toolbar -->
+            <div class="flex items-center space-x-2">
+                <!-- Return / Back Button -->
+                <button onclick="goBackToApp()" title="Return to Store" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-md shadow-sky-600/20 transition mr-1">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+
+                <!-- Sound Toggle -->
+                <button id="soundToggleBtn" title="Toggle Beep Sound" class="p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-sky-600 border border-slate-200 transition">
+                    <i class="fa-solid fa-volume-high text-sm"></i>
+                </button>
+                <!-- Flashlight Toggle (Camera Mode) -->
+                <button id="torchToggleBtn" title="Toggle Camera Flashlight" class="p-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-amber-500 border border-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-bolt text-sm"></i>
+                </button>
+                <!-- Quick History Counter Badge -->
+                <button onclick="switchTab('history')" class="flex items-center space-x-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition">
+                    <i class="fa-solid fa-clock-rotate-left text-sky-600"></i>
+                    <span>History</span>
+                    <span id="historyBadge" class="ml-1 bg-sky-100 text-sky-700 border border-sky-300 text-[10px] px-1.5 py-0.5 rounded-full font-bold">0</span>
+                </button>
+            </div>
         </div>
-        <h3 class="text-sm font-semibold text-slate-300">Camera Offline</h3>
-        <p class="text-xs text-slate-500 mt-1">Tap below to activate camera scanning.</p>
-      </div>
+    </header>
+
+    <!-- Main Tab Navigation -->
+    <nav class="bg-white border-b border-slate-200 px-4">
+        <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto scrollbar-none py-2">
+            <button onclick="switchTab('camera')" id="tab-camera" class="tab-btn active flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap bg-sky-50 text-sky-700 border border-sky-200">
+                <i class="fa-solid fa-camera"></i>
+                <span>Live Camera</span>
+            </button>
+            <button onclick="switchTab('upload')" id="tab-upload" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+                <i class="fa-solid fa-file-arrow-up"></i>
+                <span>Upload Image</span>
+            </button>
+            <button onclick="switchTab('ocr')" id="tab-ocr" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+                <i class="fa-solid fa-font"></i>
+                <span>Read Digits (OCR)</span>
+            </button>
+            <button onclick="switchTab('generator')" id="tab-generator" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+                <i class="fa-solid fa-qrcode"></i>
+                <span>Generator</span>
+            </button>
+            <button onclick="switchTab('history')" id="tab-history" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+                <i class="fa-solid fa-list-check"></i>
+                <span>Log & Data</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Application Views -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- ================= TAB 1: LIVE CAMERA SCANNER ================= -->
+        <section id="view-camera" class="tab-content space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Camera Viewfinder Column -->
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <!-- Top Controls Bar -->
+                    <div class="flex items-center justify-between mb-3 z-10">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span> Live Ready
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <!-- Camera Select Dropdown -->
+                            <select id="cameraSelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                <option value="">Detecting cameras...</option>
+                            </select>
+                            <!-- Pause/Play Scanner -->
+                            <button id="toggleScanBtn" class="bg-slate-50 hover:bg-slate-100 text-slate-700 p-1.5 rounded-lg text-xs border border-slate-200 px-3 flex items-center space-x-1.5">
+                                <i class="fa-solid fa-pause text-sky-600"></i>
+                                <span>Pause</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Video Viewport Container -->
+                    <div class="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center border border-slate-200 shadow-inner group">
+                        <!-- Video element -->
+                        <video id="videoPreview" class="w-full h-full object-cover" autoplay playsinline></video>
+                        
+                        <!-- Visual Feedback Flash Overlay -->
+                        <div id="flashOverlay" class="absolute inset-0 pointer-events-none z-20"></div>
+
+                        <!-- Clean Viewfinder Reticle Overlay -->
+                        <div id="viewfinder" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div class="relative w-64 h-48 md:w-80 md:h-56 rounded-lg transition-all duration-300 border border-sky-400/30 bg-sky-500/5">
+                                <!-- Corner Markers -->
+                                <div class="reticle-corner top-0 left-0 border-t-4 border-l-4 rounded-tl-lg"></div>
+                                <div class="reticle-corner top-0 right-0 border-t-4 border-r-4 rounded-tr-lg"></div>
+                                <div class="reticle-corner bottom-0 left-0 border-b-4 border-l-4 rounded-bl-lg"></div>
+                                <div class="reticle-corner bottom-0 right-0 border-b-4 border-r-4 rounded-br-lg"></div>
+
+                                <!-- Center Crosshair Target -->
+                                <div class="absolute inset-0 flex items-center justify-center opacity-40">
+                                    <i class="fa-solid fa-plus text-sky-400 text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Offline / Permission Overlay -->
+                        <div id="cameraStateNotice" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center space-y-3 z-30 hidden text-white">
+                            <div class="w-14 h-14 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-2xl">
+                                <i class="fa-solid fa-video-slash"></i>
+                            </div>
+                            <h3 class="text-base font-semibold text-white" id="cameraNoticeTitle">Camera Disconnected</h3>
+                            <p class="text-xs text-slate-300 max-w-sm" id="cameraNoticeMessage">Please allow camera permissions or select a valid video device to start scanning.</p>
+                            <button onclick="initCamera()" class="mt-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs rounded-lg transition shadow-md shadow-sky-600/20">
+                                <i class="fa-solid fa-rotate-right mr-1.5"></i> Restart Camera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Supported Barcode Types Indicator -->
+                    <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-sky-600"></i> Auto-Detecting 1D & 2D formats
+                        </span>
+                        <span class="text-slate-400">UPC, EAN, CODE128, QR Code, Data Matrix, PDF417</span>
+                    </div>
+                </div>
+
+                <!-- Latest Live Scan Result Box -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-bolt-lightning text-sky-600"></i> Live Scan Detection
+                            </h2>
+                            <span id="liveStatusBadge" class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-mono">STANDBY</span>
+                        </div>
+
+                        <!-- Output Card -->
+                        <div id="liveResultCard" class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                            <div class="text-center py-8 text-slate-400 space-y-2">
+                                <i class="fa-solid fa-qrcode text-3xl opacity-40"></i>
+                                <p class="text-xs">Point camera at any barcode or QR code</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Barcode Action Buttons (Hidden until scan) -->
+                    <div id="liveActionGroup" class="pt-4 border-t border-slate-100 grid grid-cols-2 gap-2 hidden">
+                        <button id="liveCopyBtn" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 border border-slate-200">
+                            <i class="fa-regular fa-copy"></i> Copy Code
+                        </button>
+                        <button id="liveSearchBtn" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 shadow-md shadow-sky-600/20">
+                            <i class="fa-solid fa-magnifying-glass"></i> Web Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: IMAGE UPLOAD SCANNER ================= -->
+        <section id="view-upload" class="tab-content space-y-4 hidden">
+            <div class="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-file-arrow-up text-sky-600"></i> Scan Barcode from Image File
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Upload photos of product packaging, invoices, or barcodes (JPG, PNG, WEBP)</p>
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-sky-500 bg-slate-50 hover:bg-sky-50/50 rounded-2xl p-8 text-center transition cursor-pointer flex flex-col items-center justify-center space-y-3 group">
+                    <div class="w-16 h-16 rounded-2xl bg-white text-slate-400 group-hover:text-sky-600 flex items-center justify-center text-2xl transition border border-slate-200 shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-700">Click to browse or drop barcode image here</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Supports high-res product labels and barcode images</p>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                </div>
+
+                <!-- Image Preview & Scan Output -->
+                <div id="uploadPreviewContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden border-t border-slate-100 pt-6">
+                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-center justify-center relative overflow-hidden max-h-64">
+                        <img id="uploadImagePreview" class="max-h-56 object-contain rounded" alt="Preview">
+                    </div>
+                    
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <span class="text-[10px] font-bold tracking-wider text-sky-700 uppercase bg-sky-100 px-2 py-0.5 rounded border border-sky-200">Upload Result</span>
+                            <div id="uploadResultOutput" class="space-y-2">
+                                <!-- Dynamically populated result -->
+                            </div>
+                        </div>
+
+                        <div id="uploadActions" class="mt-4 pt-3 border-t border-slate-200 flex space-x-2 hidden">
+                            <button id="uploadCopyBtn" class="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs rounded-lg transition border border-slate-200 shadow-sm">
+                                <i class="fa-regular fa-copy mr-1"></i> Copy
+                            </button>
+                            <button id="uploadSearchBtn" class="flex-1 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs rounded-lg transition shadow-sm">
+                                <i class="fa-solid fa-globe mr-1"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: OCR NUMBER READER MODE ================= -->
+        <section id="view-ocr" class="tab-content space-y-4 hidden">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-font text-sky-600"></i> Read Numbers Under Barcode (OCR Mode)
+                        </h2>
+                        <span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                            <i class="fa-solid fa-lightbulb mr-1"></i> For damaged barcodes
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Extract human-readable digits (EAN/UPC/Code128 text) printed below or above unreadable lines using optical character recognition.</p>
+                </div>
+
+                <!-- Source Picker Controls -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label for="ocrFileInput" class="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-sky-300 cursor-pointer flex items-center space-x-3 transition group shadow-sm">
+                        <div class="w-10 h-10 rounded-lg bg-white group-hover:bg-sky-50 text-sky-600 flex items-center justify-center border border-slate-200">
+                            <i class="fa-solid fa-image"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-700">Upload Image for OCR</p>
+                            <p class="text-[11px] text-slate-400">Select photo of label or numbers</p>
+                        </div>
+                        <input type="file" id="ocrFileInput" accept="image/*" class="hidden">
+                    </label>
+
+                    <button id="ocrSnapCameraBtn" class="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-sky-300 flex items-center space-x-3 transition text-left group shadow-sm">
+                        <div class="w-10 h-10 rounded-lg bg-white group-hover:bg-sky-50 text-sky-600 flex items-center justify-center border border-slate-200">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-700">Capture Snapshot from Camera</p>
+                            <p class="text-[11px] text-slate-400">Grab frame from live camera feed</p>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Interactive Processing Canvas & Enhancements -->
+                <div id="ocrWorkspace" class="grid grid-cols-1 lg:grid-cols-3 gap-6 hidden border-t border-slate-100 pt-6">
+                    <div class="lg:col-span-2 space-y-3">
+                        <div class="flex items-center justify-between text-xs text-slate-500">
+                            <span>Image Canvas Preprocessing</span>
+                            <div class="flex items-center space-x-3">
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="checkbox" id="ocrGrayscale" checked class="rounded bg-slate-100 border-slate-300 text-sky-600 focus:ring-0">
+                                    <span>Grayscale & Contrast Boost</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="relative bg-slate-900 rounded-xl p-2 border border-slate-200 flex items-center justify-center overflow-hidden min-h-[220px]">
+                            <canvas id="ocrCanvas" class="max-w-full max-h-[350px] object-contain rounded"></canvas>
+                        </div>
+
+                        <!-- Run OCR Button -->
+                        <button id="runOcrBtn" class="w-full py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl transition shadow-md shadow-sky-600/20 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Execute Digit OCR Extraction
+                        </button>
+                    </div>
+
+                    <!-- OCR Output Box -->
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-700">Extracted Digits/Text</span>
+                                <span id="ocrProgressStatus" class="text-[10px] text-sky-600 font-mono hidden">Processing...</span>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div id="ocrProgressBar" class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden hidden">
+                                <div id="ocrProgressFill" class="bg-sky-600 h-full w-0 transition-all duration-200"></div>
+                            </div>
+
+                            <div id="ocrResultBox" class="p-3 bg-white rounded-lg border border-slate-200 text-sm font-mono text-sky-700 min-h-[100px] break-all shadow-inner">
+                                Click "Execute Digit OCR" to scan text printed under the barcode.
+                            </div>
+                        </div>
+
+                        <div id="ocrActions" class="mt-4 pt-3 border-t border-slate-200 flex space-x-2 hidden">
+                            <button id="ocrCopyBtn" class="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs rounded-lg transition border border-slate-200 shadow-sm">
+                                <i class="fa-regular fa-copy mr-1"></i> Copy Digits
+                            </button>
+                            <button id="ocrSearchBtn" class="flex-1 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs rounded-lg transition shadow-sm">
+                                <i class="fa-solid fa-magnifying-glass mr-1"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: BUILT-IN BARCODE GENERATOR ================= -->
+        <section id="view-generator" class="tab-content space-y-4 hidden">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-qrcode text-sky-600"></i> Barcode & QR Code Test Generator
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Generate custom barcodes to test the scanner in real-time or print for testing.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Controls Column -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Barcode Format</label>
+                            <select id="genSymbology" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                <option value="CODE128">CODE128 (Standard Alphanumeric)</option>
+                                <option value="EAN13">EAN-13 (13 Digits)</option>
+                                <option value="UPC">UPC-A (12 Digits)</option>
+                                <option value="CODE39">CODE 39</option>
+                                <option value="QR">QR Code (2D Matrix)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Value / Text</label>
+                            <input type="text" id="genValue" value="7350053850019" placeholder="Enter text or numbers..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-sky-500 focus:outline-none font-mono">
+                            <span id="genFormatHint" class="text-[10px] text-slate-400 mt-1 block">Valid EAN-13 requires 12 or 13 numeric digits.</span>
+                        </div>
+
+                        <button id="generateBtn" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs rounded-xl transition shadow-md shadow-sky-600/20">
+                            <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Render Barcode
+                        </button>
+                    </div>
+
+                    <!-- Output Render Box -->
+                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-6 border border-slate-200 flex flex-col items-center justify-center space-y-4 relative min-h-[220px]">
+                        <div id="genBarcodeWrapper" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center overflow-auto max-w-full">
+                            <svg id="genBarcodeSvg"></svg>
+                            <div id="genQrDiv" class="hidden"></div>
+                        </div>
+
+                        <div class="flex items-center space-x-3">
+                            <button id="downloadGenBtn" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs rounded-lg border border-slate-200 transition shadow-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-download"></i> Download Image
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: SCAN HISTORY & LOG ================= -->
+        <section id="view-history" class="tab-content space-y-4 hidden">
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-sky-600"></i> Scan History Log
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Local log of all detected barcodes, OCR extractions, and timestamps.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="clearHistory()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs rounded-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-trash-can"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Table Container -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                                <th class="p-3">Source</th>
+                                <th class="p-3">Format</th>
+                                <th class="p-3">Barcode / Digits</th>
+                                <th class="p-3">Time</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Quick Search Lookup Modal -->
+    <div id="lookupModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <button onclick="closeLookupModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div>
+                <span id="modalFormatBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">FORMAT</span>
+                <h3 id="modalBarcodeText" class="text-xl font-bold font-mono text-slate-800 mt-2 break-all">--</h3>
+            </div>
+            
+            <p class="text-xs text-slate-500">Select a lookup service to query this barcode code or number online:</p>
+
+            <div class="grid grid-cols-1 gap-2.5">
+                <a id="btnSearchGoogle" target="_blank" rel="noopener" class="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center justify-between border border-slate-200 transition shadow-sm">
+                    <span class="flex items-center gap-2"><i class="fa-brands fa-google text-blue-500"></i> Search on Google</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                </a>
+                <a id="btnSearchOpenFood" target="_blank" rel="noopener" class="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center justify-between border border-slate-200 transition shadow-sm">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-utensils text-emerald-600"></i> Open Food Facts Database</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                </a>
+                <a id="btnSearchAmazon" target="_blank" rel="noopener" class="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center justify-between border border-slate-200 transition shadow-sm">
+                    <span class="flex items-center gap-2"><i class="fa-brands fa-amazon text-amber-500"></i> Search on Amazon</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                </a>
+            </div>
+        </div>
     </div>
-
-    <div class="w-full mt-4 flex gap-2">
-      <button id="btnToggleCamera" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition shadow-lg flex items-center justify-center gap-2">
-        <i class="fa-solid fa-power-off"></i>
-        <span>Start Camera</span>
-      </button>
-    </div>
-
-    <p id="camera-status-msg" class="scan-msg mt-3 text-center text-xs font-medium min-h-[20px]"></p>
-  </main>
-
-  <footer class="text-xs text-slate-500 text-center py-2">
-    <p>© 2026 WOBS POS | Laura Sari-Sari Store</p>
-  </footer>
-
-  <script src="camera.js"></script>
-</body>
-</html>

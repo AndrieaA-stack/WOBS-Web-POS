@@ -1,14 +1,16 @@
-const API_URL = "http://localhost:5000/api";
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") 
+  ? "http://localhost:5000/api" 
+  : "/api";
+
 let productsData = [];
 let transactionsData = [];
 
-// Admin Authentication Guard
-const ADMIN_PASSWORD = "GABRIEL";
+// Session-Based Admin Authentication Guard
 function checkAdminAccess() {
-  const inputPass = prompt(" Restricted Area: Enter Admin Password to access:");
-  if (inputPass !== ADMIN_PASSWORD) {
-    alert("❌ Incorrect Password! Redirecting to store...");
-    window.location.href = "Customer.html";
+  const isAuth = sessionStorage.getItem('wobs_admin_authenticated');
+  if (isAuth !== 'true') {
+    alert("❌ Access Denied: Please log in as an Admin first.");
+    window.location.href = "Welcomepage.html";
   }
 }
 
@@ -30,7 +32,10 @@ function switchAdminTab(tabName) {
   secTxns.classList.toggle('hidden', tabName !== 'txns');
   secAnalytics.classList.toggle('hidden', tabName !== 'analytics');
 
-  if (tabName === 'products') fetchProducts();
+  if (tabName === 'products') {
+    fetchProducts();
+    fetchPendingAdmins();
+  }
   if (tabName === 'txns') fetchTransactions();
   if (tabName === 'analytics') renderAnalytics();
 }
@@ -85,6 +90,19 @@ function openProductModal() {
   document.getElementById('prod-price').value = "";
   document.getElementById('prod-stock').value = "";
   document.getElementById('prod-expiry').value = "";
+
+  if (document.getElementById('prod-photo-base64')) {
+    document.getElementById('prod-photo-base64').value = "";
+  }
+  if (document.getElementById('camera-placeholder')) {
+    document.getElementById('camera-placeholder').classList.remove('hidden');
+    document.getElementById('image-preview').classList.add('hidden');
+    document.getElementById('camera-video').classList.add('hidden');
+    document.getElementById('btn-start-camera').classList.remove('hidden');
+    document.getElementById('btn-capture-photo').classList.add('hidden');
+    document.getElementById('btn-retake-photo').classList.add('hidden');
+  }
+
   document.getElementById('modal-product').classList.remove('hidden');
 }
 
@@ -101,23 +119,61 @@ function editProduct(id) {
   document.getElementById('prod-price').value = p.price;
   document.getElementById('prod-stock').value = p.stock;
   document.getElementById('prod-expiry').value = p.expiry ? p.expiry.split('T')[0] : "";
+
+  const photoInput = document.getElementById('prod-photo-base64');
+  const imagePreview = document.getElementById('image-preview');
+  const placeholder = document.getElementById('camera-placeholder');
+
+  if (photoInput) photoInput.value = "";
+
+  if (p.image && p.image.trim() !== "") {
+    if (photoInput) photoInput.value = p.image;
+    if (imagePreview) {
+      imagePreview.src = p.image.startsWith('data:image') ? p.image : `data:image/jpeg;base64,${p.image}`;
+      imagePreview.classList.remove('hidden');
+    }
+    if (placeholder) placeholder.classList.add('hidden');
+    document.getElementById('btn-start-camera').classList.add('hidden');
+    document.getElementById('btn-retake-photo').classList.remove('hidden');
+  } else {
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (imagePreview) imagePreview.classList.add('hidden');
+    document.getElementById('btn-start-camera').classList.remove('hidden');
+    document.getElementById('btn-retake-photo').classList.add('hidden');
+  }
+
   document.getElementById('modal-product').classList.remove('hidden');
 }
 
 function closeProductModal() {
+  if (typeof stopCameraStream === 'function') {
+    stopCameraStream();
+  }
   document.getElementById('modal-product').classList.add('hidden');
 }
 
 async function saveProduct() {
+  const photoInput = document.getElementById('prod-photo-base64');
+  const imagePreview = document.getElementById('image-preview');
+
+  let photoBase64 = "";
+
+  if (photoInput && photoInput.value && photoInput.value.trim() !== "") {
+    photoBase64 = photoInput.value;
+  } else if (imagePreview && imagePreview.src && imagePreview.src.startsWith('data:image')) {
+    photoBase64 = imagePreview.src;
+  }
+
   const productPayload = {
     id: document.getElementById('prod-id').value,
     barcode: document.getElementById('prod-barcode').value.trim(),
     name: document.getElementById('prod-name').value.trim(),
     category: document.getElementById('prod-category').value.trim(),
-    cost: parseFloat(document.getElementById('prod-cost').value),
-    price: parseFloat(document.getElementById('prod-price').value),
-    stock: parseInt(document.getElementById('prod-stock').value),
-    expiry: document.getElementById('prod-expiry').value
+    cost: parseFloat(document.getElementById('prod-cost').value) || 0,
+    price: parseFloat(document.getElementById('prod-price').value) || 0,
+    stock: parseInt(document.getElementById('prod-stock').value) || 0,
+    expiry: document.getElementById('prod-expiry').value,
+    image: photoBase64
   };
 
   try {
@@ -151,7 +207,21 @@ async function deleteProduct(id) {
 async function fetchTransactions() {
   try {
     const res = await fetch(`${API_URL}/transactions`);
-    transactionsData = await res.json();
+    let data = await res.json();
+    
+    // Check local storage status overrides
+    const localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
+    
+    transactionsData = data.map(txn => {
+      const cleanId = String(txn.id).replace('WOBS-', '').replace('#', '');
+      const localMatch = localTxns.find(l => String(l.id).replace('WOBS-', '').replace('#', '') === cleanId);
+      
+      return {
+        ...txn,
+        status: localMatch && localMatch.status ? localMatch.status : (txn.status || 'Pending')
+      };
+    });
+
     renderTransactionsTable();
   } catch (err) {
     console.error("Error fetching transactions:", err);
@@ -163,7 +233,7 @@ function renderTransactionsTable() {
   if (!tbody) return;
 
   if (transactionsData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No transactions recorded.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No transactions recorded.</td></tr>';
     return;
   }
 
@@ -173,6 +243,7 @@ function renderTransactionsTable() {
     const formattedDate = new Date(txn.date_created).toLocaleString();
     const hasProof = txn.payment_proof && txn.payment_proof.startsWith('data:image');
     const custName = txn.customer_name || 'Guest Customer';
+    const currentStatus = txn.status || 'Pending';
 
     return `
       <tr style="border-bottom: 1px solid #334155;">
@@ -188,9 +259,49 @@ function renderTransactionsTable() {
           }
         </td>
         <td><small>${itemListStr}</small></td>
+        <td>
+          <select onchange="updateOrderStatus('${txn.id}', this.value)" class="form-select" style="font-size:11px; padding:4px 8px; border-radius:6px; background:#0f172a; color:#fff; border:1px solid #334155; cursor:pointer;">
+            <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+            <option value="Preparing Order" ${currentStatus === 'Preparing Order' ? 'selected' : ''}>Preparing Order</option>
+            <option value="Out for Delivery" ${currentStatus === 'Out for Delivery' ? 'selected' : ''}>Out for Delivery</option>
+            <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+          </select>
+        </td>
       </tr>
     `;
   }).join('');
+}
+
+async function updateOrderStatus(txnId, newStatus) {
+  const cleanId = String(txnId).replace('WOBS-', '').replace('#', '');
+  
+  // 1. Update in-memory array
+  const txn = transactionsData.find(t => String(t.id).replace('WOBS-', '').replace('#', '') === cleanId);
+  if (txn) {
+    txn.status = newStatus;
+  }
+
+  // 2. Persist in localStorage for cross-tab sync with Customer.html
+  let localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
+  const localIndex = localTxns.findIndex(l => String(l.id).replace('WOBS-', '').replace('#', '') === cleanId);
+  
+  if (localIndex !== -1) {
+    localTxns[localIndex].status = newStatus;
+  } else {
+    localTxns.push({ id: txnId, status: newStatus });
+  }
+  localStorage.setItem('wobs_transactions', JSON.stringify(localTxns));
+
+  // 3. Sync to Backend Database API
+  try {
+    await fetch(`${API_URL}/transactions/${cleanId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+  } catch (err) {
+    console.warn("Server status sync notice:", err);
+  }
 }
 
 function viewProofImage(txnId) {
@@ -207,7 +318,51 @@ function closeProofModal() {
   document.getElementById('modal-proof-preview').classList.add('hidden');
 }
 
-// Analytics Renderer
+// Admin Pending Approvals Handler
+async function fetchPendingAdmins() {
+  try {
+    const res = await fetch(`${API_URL}/admin/pending`);
+    if (!res.ok) return;
+    const list = await res.json();
+    const tbody = document.getElementById('pending-admin-list');
+    if (!tbody) return;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:10px; color:#94a3b8;">No pending account approvals.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(a => `
+      <tr style="border-bottom: 1px solid #334155;">
+        <td><strong>${a.fullname}</strong></td>
+        <td><code>${a.username}</code></td>
+        <td>
+          <button onclick="approveAdmin(${a.id}, 'APPROVED')" class="btn btn-success btn-sm">Approve</button>
+          <button onclick="approveAdmin(${a.id}, 'REJECTED')" class="btn btn-danger btn-sm">Reject</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.warn("Pending admin check warning:", err);
+  }
+}
+
+async function approveAdmin(id, action) {
+  try {
+    const res = await fetch(`${API_URL}/admin/approve/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (res.ok) {
+      fetchPendingAdmins();
+    }
+  } catch (err) {
+    console.error("Approval error:", err);
+  }
+}
+
+// Sales Analytics Renderer
 async function renderAnalytics() {
   await fetchProducts();
   await fetchTransactions();
@@ -262,7 +417,20 @@ async function renderAnalytics() {
   `).join('') || '<tr><td colspan="2">No sales recorded</td></tr>';
 }
 
+function handleAdminLogout() {
+  if (confirm("Are you sure you want to logout from Admin Access?")) {
+    // Clear session-based authentication storage
+    sessionStorage.removeItem('wobs_admin_authenticated');
+    sessionStorage.removeItem('wobs_admin_username');
+    
+    // Redirect to Welcome landing page
+    window.location.href = "Welcomepage.html";
+  }
+}
+
+
 window.onload = function() {
   checkAdminAccess();
   fetchProducts();
+  fetchPendingAdmins();
 };

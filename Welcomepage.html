@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Laura Store</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="#">
+</head>
+<body class="welcome-page-bg">
+
+  <!-- CENTERED HERO CARD -->
+  <div class="welcome-hero-card">
+    <div class="welcome-brand-badge">WOBS</div>
+    
+    <h1 class="welcome-title">Welcome to Laura's Store</h1>
+
+
+    <div class="welcome-action-group">
+      <!-- Customer Button -->
+      <a href="Customer.html" class="welcome-btn btn-customer-action">
+        <span></span> Continue as Customer
+      </a>
+      
+      <!-- Admin Access Button -->
+      <button type="button" onclick="openAdminAuthModal()" class="welcome-btn btn-admin-action">
+        <span></span> Admin Portal Access
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: ADMIN LOGIN / SIGNUP -->
+  <div id="modal-admin-auth" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 400px; text-align: left;">
+      <div class="modal-header">
+        <h3 id="auth-modal-title">Admin Gateway</h3>
+        <button type="button" onclick="closeAdminAuthModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="auth-tab-buttons">
+          <button type="button" id="tab-login" onclick="switchAuthTab('login')" class="auth-tab-btn active">Login</button>
+          <button type="button" id="tab-signup" onclick="switchAuthTab('signup')" class="auth-tab-btn">Register New Admin</button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <form id="form-admin-login" onsubmit="handleAdminLogin(event)">
+          <div class="form-group">
+            <label for="login-username">Username *</label>
+            <input type="text" id="login-username" class="form-input" required autofocus>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password *</label>
+            <input type="password" id="login-password" class="form-input" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" style="margin-top: 15px;">Login to Portal</button>
+        </form>
+
+        <!-- REGISTER FORM -->
+        <form id="form-admin-signup" onsubmit="handleAdminSignup(event)" class="hidden">
+          <div class="form-group">
+            <label for="signup-fullname">Full Name *</label>
+            <input type="text" id="signup-fullname" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="signup-username">Desired Username *</label>
+            <input type="text" id="signup-username" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password *</label>
+            <input type="password" id="signup-password" class="form-input" required>
+          </div>
+          <p style="font-size: 11px; margin-top: 8px; color: #64748b;">
+            ⚠️ New accounts require manual approval from an existing Admin before logging in.
+          </p>
+          <button type="submit" class="btn btn-success btn-block" style="margin-top: 15px;">Submit Request</button>
+        </form>
+
+        <p id="auth-msg" class="scan-msg" style="margin-top: 10px; text-align: center;"></p>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="Welcomepage.js"></script>
+</body>
+</html>

@@ -5,23 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WOBS - Admin Portal</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="#">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-  <header class="header">
-    <div class="header-container">
-      <div class="brand">
-        <div class="brand-logo"></div>
-        <div>
-          <h1>WOBS Admin Portal</h1>
-          <p>Laura Sari-Sari Store Inventory & Order Management</p>
-        </div>
-      </div>
+<header class="header">
+  <div class="header-container">
+    <div class="brand">
+      <div class="brand-logo"></div>
       <div>
-        <a href="Customer.html" class="tab-btn" style="text-decoration:none;"> Customer Store Front</a>
+        <h1>WOBS Admin Portal</h1>
+        <p>Laura Sari-Sari Store Inventory &amp; Order Management</p>
       </div>
     </div>
-  </header>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <!-- Admin Logout Button -->
+      <button onclick="handleAdminLogout()" class="tab-btn" style="background-color: #ef4444; color: #ffffff; border: none; cursor: pointer;">
+         Logout
+      </button>
+    </div>
+  </div>
+</header>
 
   <main class="main-container">
     
@@ -42,7 +48,7 @@
         <button onclick="openProductModal()" class="btn btn-success">+ Add New Product</button>
       </div>
 
-      <div class="card">
+      <div class="card mb-3">
         <table class="table" style="width:100%; border-collapse:collapse;">
           <thead>
             <tr style="text-align:left; border-bottom:2px solid #334155; padding-bottom:8px;">
@@ -60,13 +66,28 @@
           <tbody id="admin-products-list"></tbody>
         </table>
       </div>
+
+      <!-- Admin Pending Requests Card -->
+      <div class="card">
+        <h3>Pending Admin Registration Requests</h3>
+        <table class="table" style="width:100%;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Requested Username</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="pending-admin-list"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- TAB 2: TRANSACTIONS & PROOF SCREENSHOTS -->
     <div id="section-txns" class="admin-section hidden">
       <div class="card mb-3">
         <h3>Order Transactions Log</h3>
-        <p class="text-muted" style="font-size:12px;">View completed customer orders, delivery addresses, and GCash payment screenshots.</p>
+        <p class="text-muted" style="font-size:12px;">View completed customer orders, delivery addresses, GCash payment screenshots, and manage order statuses.</p>
       </div>
 
       <div class="card">
@@ -80,6 +101,7 @@
               <th>Total Paid</th>
               <th>Payment Screenshot</th>
               <th>Items Ordered</th>
+              <th>Order Status</th>
             </tr>
           </thead>
           <tbody id="admin-txns-list"></tbody>
@@ -142,36 +164,59 @@
       <div class="modal-body">
         <input type="hidden" id="prod-id">
         
+        <!-- Camera Section -->
+        <div class="form-group camera-container">
+          <label>Product Photo</label>
+          <div class="camera-preview-box">
+            <video id="camera-video" autoplay playsinline class="hidden"></video>
+            <img id="image-preview" src="" alt="Product Preview" class="hidden">
+            <div id="camera-placeholder" class="camera-placeholder">
+              <span>No photo captured</span>
+            </div>
+          </div>
+
+          <div class="camera-controls">
+            <button type="button" id="btn-start-camera" onclick="startCamera()" class="btn btn-secondary">Open Camera</button>
+            <button type="button" id="btn-capture-photo" onclick="capturePhoto()" class="btn btn-primary hidden">Take Photo</button>
+            <button type="button" id="btn-retake-photo" onclick="retakePhoto()" class="btn btn-secondary hidden">Retake</button>
+          </div>
+
+          <canvas id="camera-canvas" class="hidden"></canvas>
+          
+          <!-- Hidden input field that stores the Base64 image string -->
+          <input type="hidden" id="prod-photo-base64">
+        </div>
+
         <div class="form-group">
           <label for="prod-barcode">Barcode Number *</label>
-          <input type="text" id="prod-barcode" class="form-input" placeholder="e.g. 4800016022014" required>
+          <input type="text" id="prod-barcode" placeholder="Barcode Number" class="form-input">
         </div>
 
         <div class="form-group">
           <label for="prod-name">Product Name *</label>
-          <input type="text" id="prod-name" class="form-input" placeholder="e.g. Lucky Me! Pancit Canton" required>
+          <input type="text" id="prod-name" class="form-input">
         </div>
 
         <div class="form-group">
           <label for="prod-category">Category *</label>
-          <input type="text" id="prod-category" class="form-input" placeholder="e.g. Instant Noodles" required>
+          <input type="text" id="prod-category" class="form-input">
         </div>
 
         <div style="display:flex; gap:10px;">
           <div class="form-group" style="flex:1;">
             <label for="prod-cost">Supplier Cost (₱) *</label>
-            <input type="number" step="0.01" id="prod-cost" class="form-input" placeholder="13.00" required>
+            <input type="number" step="0.01" id="prod-cost" class="form-input">
           </div>
           <div class="form-group" style="flex:1;">
             <label for="prod-price">Retail Price (₱) *</label>
-            <input type="number" step="0.01" id="prod-price" class="form-input" placeholder="16.00" required>
+            <input type="number" step="0.01" id="prod-price" class="form-input">
           </div>
         </div>
 
         <div style="display:flex; gap:10px;">
           <div class="form-group" style="flex:1;">
             <label for="prod-stock">Stock Quantity *</label>
-            <input type="number" id="prod-stock" class="form-input" placeholder="50" required>
+            <input type="number" id="prod-stock" class="form-input">
           </div>
           <div class="form-group" style="flex:1;">
             <label for="prod-expiry">Expiration Date *</label>
@@ -203,6 +248,7 @@
     </div>
   </div>
 
-  <script src="admin.js"></script>
+  <script src="addproductcamera.js"></script>
+  <script src="Admin.js"></script>
 </body>
 </html>

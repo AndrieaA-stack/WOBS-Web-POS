@@ -1,5 +1,5 @@
-// Dynamic API URL switching between localhost and production
-const API_URL = window.location.hostname === "localhost" 
+// Dynamic API URL switching supporting both localhost and 127.0.0.1
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") 
   ? "http://localhost:5000/api" 
   : "/api";
 
@@ -23,9 +23,9 @@ const LOCATION_DATA = {
 
 // Fallback products when backend database is unavailable
 const MOCK_PRODUCTS = [
-  { id: 'p1', barcode: '4800016022014', name: 'Lucky Me! Pancit Canton', category: 'Instant Noodles', cost: 13.00, price: 16.00, stock: 40, expiry: '2027-02-15' },
-  { id: 'p2', barcode: '4800016055012', name: 'Century Tuna Flakes 180g', category: 'Canned Goods', cost: 38.50, price: 46.00, stock: 18, expiry: '2027-08-20' },
-  { id: 'p3', barcode: '4800092112345', name: 'San Mig Coffee 3-in-1', category: 'Beverages', cost: 7.00, price: 9.00, stock: 80, expiry: '2026-12-10' }
+  { id: 'p1', barcode: '4800016022014', name: 'Lucky Me! Pancit Canton', category: 'Instant Noodles', cost: 13.00, price: 16.00, stock: 40, expiry: '2027-02-15', image: '' },
+  { id: 'p2', barcode: '4800016055012', name: 'Century Tuna Flakes 180g', category: 'Canned Goods', cost: 38.50, price: 46.00, stock: 18, expiry: '2027-08-20', image: '' },
+  { id: 'p3', barcode: '4800092112345', name: 'San Mig Coffee 3-in-1', category: 'Beverages', cost: 7.00, price: 9.00, stock: 80, expiry: '2026-12-10', image: '' }
 ];
 
 // Convert image file into Base64 string
@@ -85,14 +85,6 @@ function getDaysToExpiry(expiryDateStr) {
   return Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
 }
 
-function checkForPendingScan() {
-  var pendingCode = localStorage.getItem('wobs_pending_scan');
-  if (pendingCode) {
-    localStorage.removeItem('wobs_pending_scan');
-    processScannedBarcode(pendingCode);
-  }
-}
-
 async function processScannedBarcode(code) {
   var msgEl = document.getElementById('barcode-scan-msg');
   await fetchProductsFromDB();
@@ -100,17 +92,23 @@ async function processScannedBarcode(code) {
   var found = products.find(p => p.barcode === code);
   if (found) {
     if (getDaysToExpiry(found.expiry) < 0) {
-      msgEl.className = 'scan-msg text-danger';
-      msgEl.textContent = '❌ EXPIRED ITEM: ' + found.name + ' cannot be added.';
+      if (msgEl) {
+        msgEl.className = 'scan-msg text-danger';
+        msgEl.textContent = '❌ EXPIRED ITEM: ' + found.name + ' cannot be added.';
+      }
     } else if (found.stock <= 0) {
-      msgEl.className = 'scan-msg text-danger';
-      msgEl.textContent = '❌ OUT OF STOCK: ' + found.name;
+      if (msgEl) {
+        msgEl.className = 'scan-msg text-danger';
+        msgEl.textContent = '❌ OUT OF STOCK: ' + found.name;
+      }
     } else {
       addToCart(found.id);
-      msgEl.className = 'scan-msg text-primary';
-      msgEl.textContent = '✅ Scanned & Added: "' + found.name + '"';
+      if (msgEl) {
+        msgEl.className = 'scan-msg text-primary';
+        msgEl.textContent = '✅ Scanned & Added: "' + found.name + '"';
+      }
     }
-  } else {
+  } else if (msgEl) {
     msgEl.className = 'scan-msg text-danger';
     msgEl.textContent = '❌ Unrecognized Barcode: ' + code;
   }
@@ -119,6 +117,7 @@ async function processScannedBarcode(code) {
 function handleBarcodeScan(e) {
   if (e) e.preventDefault();
   var inputEl = document.getElementById('pos-barcode-scanner');
+  if (!inputEl) return;
   var code = inputEl.value.trim();
   if (code) processScannedBarcode(code);
   inputEl.value = '';
@@ -145,21 +144,36 @@ async function renderPosCatalog() {
   renderCategoryPills();
 
   var searchInput = document.getElementById('pos-search');
-  var search = searchInput ? searchInput.value.toLowerCase() : '';
+  var search = searchInput ? searchInput.value.toLowerCase().trim() : '';
   var catalog = document.getElementById('pos-catalog');
 
   if (!catalog) return;
 
   var filtered = products.filter(p => 
     (selectedCategory === 'All' || p.category === selectedCategory) &&
-    (p.name.toLowerCase().includes(search) || p.barcode.includes(search))
+    (p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)))
   );
 
   catalog.innerHTML = filtered.map(p => {
     var isExpired = getDaysToExpiry(p.expiry) < 0;
     var canAdd = !isExpired && p.stock > 0;
+    
+    // Determine image source from database
+    var imgSrc = 'https://via.placeholder.com/150';
+
+    if (p.image && typeof p.image === 'string' && p.image.trim() !== '') {
+      imgSrc = p.image.startsWith('data:image') 
+        ? p.image 
+        : `data:image/jpeg;base64,${p.image}`;
+    } else if (p.image_url && typeof p.image_url === 'string' && p.image_url.trim() !== '') {
+      imgSrc = p.image_url;
+    }
+
     return `
       <div class="product-card ${isExpired ? 'expired' : ''}">
+        <div style="width:100%; height:140px; background-color:#f1f5f9; border-radius:6px; overflow:hidden; margin-bottom:10px; display:flex; align-items:center; justify-content:center;">
+          <img src="${imgSrc}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/150';">
+        </div>
         <div>
           <div style="display:flex; justify-content:space-between;">
             <span class="card-tag">${p.category}</span>
@@ -168,13 +182,13 @@ async function renderPosCatalog() {
           <h4 class="card-title">${p.name}</h4>
           ${isExpired ? '<span class="error-text">EXPIRED</span>' : `<small>Exp: ${p.expiry}</small>`}
         </div>
-        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
           <span class="card-price">₱${p.price.toFixed(2)}</span>
           <button type="button" onclick="addToCart('${p.id}')" ${!canAdd ? 'disabled' : ''} class="btn btn-primary btn-sm">+</button>
         </div>
       </div>
     `;
-  }).join('') || '<p class="text-muted">No products found.</p>';
+  }).join('') || '<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">No products found.</p>';
 }
 
 function addToCart(id) {
@@ -325,17 +339,10 @@ async function processGCashPayment() {
       body: JSON.stringify(newTxn)
     });
 
-    if (res.ok) {
-      openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
-      clearCart();
-      closeGCashModal();
-      renderPosCatalog();
-    } else {
-      openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
-      clearCart();
-      closeGCashModal();
-      renderPosCatalog();
-    }
+    openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
+    clearCart();
+    closeGCashModal();
+    renderPosCatalog();
   } catch (err) {
     const newTxn = {
       id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
@@ -367,7 +374,6 @@ function closeReceiptModal() { document.getElementById('modal-receipt').classLis
 window.onload = function() {
   renderPosCatalog();
   renderCart();
-  checkForPendingScan();
 
   var manualInput = document.getElementById('pos-barcode-scanner');
   if (manualInput) {
@@ -375,4 +381,111 @@ window.onload = function() {
       if (e.key === 'Enter') handleBarcodeScan(e);
     });
   }
+
+  // Live Catalog Filter Listener
+  var searchInput = document.getElementById('pos-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      renderPosCatalog();
+    });
+  }
 };
+
+// Order Status Modal Handlers
+function openOrderStatusModal() {
+  document.getElementById('track-txn-id').value = '';
+  document.getElementById('status-result-box').classList.add('hidden');
+  document.getElementById('status-error-msg').classList.add('hidden');
+  document.getElementById('modal-order-status').classList.remove('hidden');
+}
+
+function closeOrderStatusModal() {
+  document.getElementById('modal-order-status').classList.add('hidden');
+}
+
+async function checkOrderStatus() {
+  const inputEl = document.getElementById('track-txn-id');
+  const resultBox = document.getElementById('status-result-box');
+  const errorMsg = document.getElementById('status-error-msg');
+  
+  if (!inputEl) return;
+  let rawQuery = inputEl.value.trim().toUpperCase();
+  
+  if (!rawQuery) {
+    errorMsg.textContent = "Please enter a Transaction ID.";
+    errorMsg.classList.remove('hidden');
+    resultBox.classList.add('hidden');
+    return;
+  }
+
+  // Extract pure numbers/digits from input for universal matching (e.g., 334864)
+  const numericId = rawQuery.replace(/[^0-9]/g, '');
+
+  try {
+    // 1. Fetch live transactions from PostgreSQL server
+    let txn = null;
+    const res = await fetch(`${API_URL}/transactions`);
+    
+    if (res.ok) {
+      const serverTxns = await res.json();
+      // Flexible ID match supporting full "#WOBS-334864", "WOBS-334864", or "334864"
+      txn = serverTxns.find(t => {
+        const cleanTId = String(t.id).replace(/[^0-9]/g, '');
+        return cleanTId === numericId || String(t.id).toUpperCase().includes(rawQuery);
+      });
+    }
+
+    // 2. Check localStorage fallback if backend fetch fails
+    if (!txn) {
+      const localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
+      txn = localTxns.find(l => {
+        const cleanLId = String(l.id).replace(/[^0-9]/g, '');
+        return cleanLId === numericId || String(l.id).toUpperCase().includes(rawQuery);
+      });
+    }
+
+    if (txn) {
+      errorMsg.classList.add('hidden');
+      
+      const items = typeof txn.items === 'string' ? JSON.parse(txn.items) : txn.items;
+      const itemListStr = items.map(i => `${i.name} (x${i.qty})`).join(', ');
+
+      document.getElementById('status-txn-title').textContent = txn.id.startsWith('#') ? txn.id : `#${txn.id}`;
+      document.getElementById('status-cust-name').textContent = txn.customer_name || txn.customerName || 'Guest Customer';
+      document.getElementById('status-address').textContent = txn.address || 'N/A';
+      document.getElementById('status-total').textContent = `₱${parseFloat(txn.total).toFixed(2)}`;
+      document.getElementById('status-items-list').textContent = itemListStr;
+
+      // Check localStorage for recent admin status override
+      const localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
+      const localMatch = localTxns.find(l => String(l.id).replace(/[^0-9]/g, '') === numericId);
+      const activeStatus = localMatch && localMatch.status ? localMatch.status : (txn.status || 'Pending');
+
+      // Status Badge Styling
+      const badge = document.getElementById('status-badge');
+      const statusText = activeStatus.toUpperCase();
+      badge.textContent = statusText;
+      
+      if (statusText === 'DELIVERED') {
+        badge.style.background = '#22c55e'; // Green
+      } else if (statusText === 'OUT FOR DELIVERY') {
+        badge.style.background = '#eab308'; // Amber
+      } else if (statusText === 'PREPARING ORDER') {
+        badge.style.background = '#a855f7'; // Purple
+      } else {
+        badge.style.background = '#0284c7'; // Blue (Pending)
+      }
+
+      resultBox.classList.remove('hidden');
+    } else {
+      resultBox.classList.add('hidden');
+      errorMsg.textContent = "❌ Transaction ID not found. Please check your receipt number.";
+      errorMsg.classList.remove('hidden');
+    }
+  } catch (err) {
+    console.error("Error looking up order status:", err);
+    resultBox.classList.add('hidden');
+    errorMsg.textContent = "❌ Unable to lookup order status.";
+    errorMsg.classList.remove('hidden');
+  }
+}

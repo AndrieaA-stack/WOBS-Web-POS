@@ -3,50 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WOBS - Customer Ordering & POS</title>
+  <title>WOBS - Customer Ordering &amp; POS</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="#">
 </head>
 <body>
 
-  <header class="header">
-    <div class="header-container">
-      <div class="brand">
-        <div class="brand-logo"></div>
-        <div>
-          <h1>WOBS Store</h1>
-          <p>Laura Sari-Sari Store Online Ordering</p>
-        </div>
-      </div>
+<header class="header">
+  <div class="header-container">
+    <div class="brand">
+      <div class="brand-logo"></div>
       <div>
-        <a href="Admin.html" class="tab-btn" style="text-decoration:none;"> Admin Access</a>
+        <h1>WOBS Store</h1>
+        <p>Laura Sari-Sari Store Online Ordering</p>
       </div>
     </div>
-  </header>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <!-- Back to Welcome Page Button -->
+      <a href="Welcomepage.html" class="tab-btn" style="text-decoration:none; background-color:#334155; color:#fff;">
+         Welcome Page
+      </a>
+      <!-- Track Order Button -->
+      <button onclick="openOrderStatusModal()" class="tab-btn" style="background-color: #0284c7; color: #fff; border: none; cursor: pointer;">
+         Track Order
+      </button>
+    </div>
+  </div>
+</header>
 
   <main class="main-container">
     <div class="pos-layout">
       
-      <!-- CATALOG & SCANNER SECTION -->
+      <!-- CATALOG SECTION -->
       <div class="pos-catalog-section">
-
-        <!-- Camera Navigation Button -->
-        <div class="card mb-3" style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <strong> Camera Barcode Scanner</strong>
-            <p class="text-muted" style="font-size: 11px;">Use your phone camera to scan products</p>
-          </div>
-          <a href="Camera.html" class="btn btn-primary btn-sm" style="text-decoration: none;">Launch Scanner Page</a>
-        </div>
-
-        <!-- Manual Barcode Input Box -->
-        <div class="barcode-scan-box card">
-          <label for="pos-barcode-scanner"><strong> Manual Barcode Input:</strong></label>
-          <div class="scanner-input-group">
-            <input type="text" id="pos-barcode-scanner" placeholder="Scan hardware barcode or type here..." class="form-input" autofocus>
-            <button onclick="handleBarcodeScan(event)" class="btn btn-primary">Scan Item</button>
-          </div>
-          <p id="barcode-scan-msg" class="scan-msg"></p>
-        </div>
 
         <div class="filter-bar">
           <input type="text" id="pos-search" oninput="renderPosCatalog()" placeholder="Search item name or barcode..." class="form-input search-input">
@@ -83,7 +72,7 @@
 
             <!-- Minimum Delivery Requirement Notice -->
             <p id="min-delivery-msg" style="font-size: 11px; color: #f87171; text-align: center; margin: 8px 0 4px 0; font-weight: 500;">
-              ⚠️ Minimum order for delivery is ₱150.00
+              Minimum order for delivery is 150.00
             </p>
 
             <button id="btn-checkout" onclick="openGCashModal()" disabled class="btn btn-success btn-block">
@@ -95,6 +84,46 @@
 
     </div>
   </main>
+
+  <!-- MODAL: TRACK ORDER STATUS -->
+  <div id="modal-order-status" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Order Status Lookup</h3>
+        <button onclick="closeOrderStatusModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="track-txn-id">Enter Transaction ID *</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="track-txn-id" placeholder="e.g. WOBS-123456" class="form-input" style="flex: 1;">
+            <button onclick="checkOrderStatus()" class="btn btn-primary">Check Status</button>
+          </div>
+        </div>
+
+        <!-- Order Result Display Box -->
+        <div id="status-result-box" class="hidden" style="margin-top: 15px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; color: #f8fafc;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px;">
+            <strong id="status-txn-title" style="color: #38bdf8;">#WOBS-000000</strong>
+            <span id="status-badge" style="background: #0284c7; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">PROCESSING</span>
+          </div>
+          <p style="font-size: 12px; margin-bottom: 4px;">Customer: <strong id="status-cust-name">--</strong></p>
+          <p style="font-size: 12px; margin-bottom: 4px;">Delivery Address: <span id="status-address">--</span></p>
+          <p style="font-size: 12px; margin-bottom: 8px;">Total Amount: <strong id="status-total" style="color: #4ade80;">₱0.00</strong></p>
+          <div style="font-size: 12px; border-top: 1px dashed #334155; padding-top: 8px;">
+            <strong>Items:</strong>
+            <div id="status-items-list" style="color: #94a3b8; font-size: 11px; margin-top: 4px;"></div>
+          </div>
+        </div>
+
+        <p id="status-error-msg" class="error-text text-danger hidden" style="margin-top: 10px; text-align: center;"></p>
+
+        <div class="modal-footer" style="margin-top: 15px;">
+          <button onclick="closeOrderStatusModal()" class="btn btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL: CHECKOUT & DELIVERY -->
   <div id="modal-gcash" class="modal-overlay hidden">
@@ -116,7 +145,7 @@
         <!-- Full Name Field -->
         <div class="form-group">
           <label for="cust-name">Full Name *</label>
-          <input type="text" id="cust-name" placeholder="e.g. Juan Dela Cruz" class="form-input" required>
+          <input type="text" id="cust-name">
         </div>
 
         <!-- City Dropdown -->
@@ -141,16 +170,14 @@
         <!-- Street Address Field -->
         <div class="form-group">
           <label for="cust-street">House No., Building, Street Name *</label>
-          <input type="text" id="cust-street" placeholder="e.g. #123 Macarthur Highway" class="form-input" required>
+          <input type="text" id="cust-street">
         </div>
 
         <!-- GCash Screenshot File Input -->
         <div class="form-group">
           <label for="gcash-proof-input">Upload Proof of Payment (Screenshot) *</label>
           <input type="file" id="gcash-proof-input" accept="image/*" class="form-input" required>
-          <small class="text-muted" style="font-size: 11px; display: block; margin-top: 4px;">
-            Supported formats: PNG, JPG, JPEG (Max 5MB)
-          </small>
+          <small class="text-muted" style="font-size: 11px; display: block; margin-top: 4px;"></small>
         </div>
 
         <div class="modal-footer">
