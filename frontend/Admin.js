@@ -240,7 +240,7 @@ function renderTransactionsTable() {
   if (!tbody) return;
 
   if (transactionsData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">No transactions recorded.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No transaction records found.</td></tr>';
     return;
   }
 
@@ -253,21 +253,21 @@ function renderTransactionsTable() {
     const currentStatus = txn.status || 'Pending';
 
     return `
-      <tr style="border-bottom: 1px solid #334155;">
-        <td><strong>#${txn.id}</strong></td>
-        <td><small>${formattedDate}</small></td>
+      <tr>
+        <td><strong style="color: #38bdf8;">#${txn.id}</strong></td>
+        <td><small class="text-muted">${formattedDate}</small></td>
         <td><strong>${custName}</strong></td>
-        <td><small>${txn.address}</small></td>
-        <td><strong>₱${parseFloat(txn.total).toFixed(2)}</strong></td>
-        <td>
+        <td><small style="color: #cbd5e1;">${txn.address}</small></td>
+        <td class="text-right"><strong style="color: #4ade80;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
+        <td class="text-center">
           ${hasProof 
-            ? `<button onclick="viewProofImage('${txn.id}')" class="btn btn-primary btn-sm"> View Screenshot</button>` 
+            ? `<button onclick="viewProofImage('${txn.id}')" class="btn-proof-view">🖼️ View Screenshot</button>` 
             : `<span class="text-muted">No Image</span>`
           }
         </td>
-        <td><small>${itemListStr}</small></td>
-        <td>
-          <select onchange="updateOrderStatus('${txn.id}', this.value)" class="form-select" style="font-size:11px; padding:4px 8px; border-radius:6px; background:#0f172a; color:#fff; border:1px solid #334155; cursor:pointer;">
+        <td><small style="color: #94a3b8;">${itemListStr}</small></td>
+        <td class="text-center">
+          <select onchange="updateOrderStatus('${txn.id}', this.value)" class="status-select">
             <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
             <option value="Preparing Order" ${currentStatus === 'Preparing Order' ? 'selected' : ''}>Preparing Order</option>
             <option value="Out for Delivery" ${currentStatus === 'Out for Delivery' ? 'selected' : ''}>Out for Delivery</option>
