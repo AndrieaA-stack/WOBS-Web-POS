@@ -1,4 +1,3 @@
-// Replace with your exact Render Web Service URL
 const RENDER_BACKEND_URL = "https://wobs-web-pos.onrender.com"; 
 
 const API_URL = (
