@@ -249,21 +249,63 @@
       <div class="modal-body">
         <input type="hidden" id="prod-id">
         
-        <!-- Camera Section -->
+        <!-- Camera Section (Unified Photo Capture & Real-time Barcode Scanner) -->
         <div class="form-group camera-container">
-          <label>Product Photo</label>
+          <label>Product Photo &amp; Camera Scanner</label>
           <div class="camera-preview-box">
             <video id="camera-video" autoplay playsinline class="hidden"></video>
             <img id="image-preview" src="" alt="Product Preview" class="hidden">
             <div id="camera-placeholder" class="camera-placeholder">
-              <span>No photo captured</span>
+              <i class="fa-solid fa-camera" style="font-size: 24px; display: block; margin-bottom: 6px; opacity: 0.5;"></i>
+              <span>Camera is off</span>
+            </div>
+
+            <!-- Flash Overlay on Detection -->
+            <div id="camera-flash-overlay" class="barcode-flash-overlay"></div>
+
+            <!-- Target Reticle & Animated Laser Line -->
+            <div id="camera-reticle" class="barcode-reticle hidden">
+              <div class="reticle-corner top-left"></div>
+              <div class="reticle-corner top-right"></div>
+              <div class="reticle-corner bottom-left"></div>
+              <div class="reticle-corner bottom-right"></div>
+              <div class="barcode-laser-line"></div>
+            </div>
+
+            <!-- In-Viewfinder Live Status Bar -->
+            <div id="camera-active-toolbar" class="hidden" style="position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; align-items: center; z-index: 15; pointer-events: auto;">
+              <span id="camera-scan-status-badge" style="background: rgba(15, 23, 42, 0.85); color: #38bdf8; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-bolt"></i> Auto-Scanning Barcode...
+              </span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <select id="camera-device-select" onchange="changeCameraDevice(this.value)" class="form-select" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.85); color: #ffffff; border: 1px solid #475569; max-width: 140px;">
+                  <option value="">Default Camera</option>
+                </select>
+                <button type="button" id="btn-camera-torch" onclick="toggleCameraTorch()" class="btn btn-secondary btn-sm" title="Toggle Flashlight" disabled style="padding: 2px 6px; font-size: 11px; background: rgba(15, 23, 42, 0.85); color: #ffffff; border: 1px solid #475569;">
+                  <i class="fa-solid fa-bolt"></i>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="camera-controls">
-            <button type="button" id="btn-start-camera" onclick="startCamera()" class="btn btn-secondary">Open Camera</button>
-            <button type="button" id="btn-capture-photo" onclick="capturePhoto()" class="btn btn-primary hidden">Take Photo</button>
-            <button type="button" id="btn-retake-photo" onclick="retakePhoto()" class="btn btn-secondary hidden">Retake</button>
+          <div class="camera-controls" style="margin-top: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" id="btn-start-camera" onclick="startUnifiedCamera()" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-video"></i> Open Camera
+              </button>
+              <button type="button" id="btn-capture-photo" onclick="capturePhoto()" class="btn btn-primary hidden" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-camera"></i> Take Photo
+              </button>
+              <button type="button" id="btn-stop-camera" onclick="stopUnifiedCamera()" class="btn btn-secondary hidden" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-stop"></i> Close Camera
+              </button>
+              <button type="button" id="btn-retake-photo" onclick="retakePhoto()" class="btn btn-secondary hidden" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-rotate-left"></i> Retake Photo
+              </button>
+            </div>
+            <a href="javascript:void(0)" onclick="openFullScannerPage()" style="font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Full Scanner App
+            </a>
           </div>
 
           <canvas id="camera-canvas" class="hidden"></canvas>
@@ -276,8 +318,8 @@
           <label for="prod-barcode">Barcode Number *</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="prod-barcode" placeholder="Barcode Number" class="form-input" style="flex: 1;">
-            <button type="button" id="btn-open-barcode-scanner" onclick="openBarcodeScannerModal()" class="btn" style="background-color: #0f172a; color: #ffffff; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; padding: 8px 14px; border-radius: 6px;">
-              <i class="fa-solid fa-barcode"></i> Scan Barcode
+            <button type="button" id="btn-open-barcode-scanner" onclick="triggerBarcodeScanFromField()" class="btn" style="background-color: #0f172a; color: #ffffff; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; padding: 8px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-barcode"></i> Scan with Camera
             </button>
           </div>
           <div id="barcode-scan-success-msg" class="hidden" style="margin-top: 6px; font-size: 12px; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -321,85 +363,6 @@
           <button onclick="closeProductModal()" class="btn btn-secondary">Cancel</button>
           <button onclick="saveProduct()" class="btn btn-primary">Save Product</button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: LIVE BARCODE SCANNER (ZXing Engine from Camera.js) -->
-  <div id="modal-barcode-scanner" class="modal-overlay hidden" style="z-index: 210;">
-    <div class="modal-card" style="max-width: 520px; width: 95%;">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-barcode" style="color: #38bdf8;"></i>
-          <h3 style="margin: 0;">Scan Product Barcode</h3>
-        </div>
-        <button type="button" onclick="closeBarcodeScannerModal()" class="modal-close">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 16px;">
-        
-        <!-- Top Scanner Controls -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span id="barcode-scanner-status" class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 700; padding: 4px 10px; font-size: 11px;">
-              <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16a34a; margin-right: 4px;"></span> Ready to Scan
-            </span>
-          </div>
-          
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <!-- Camera Selector -->
-            <select id="barcode-camera-select" onchange="changeBarcodeCamera(this.value)" class="form-select" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; max-width: 160px;">
-              <option value="">Detecting cameras...</option>
-            </select>
-            <!-- Torch Toggle -->
-            <button type="button" id="btn-barcode-torch" onclick="toggleBarcodeTorch()" class="btn btn-secondary btn-sm" title="Toggle Flashlight" disabled style="padding: 4px 8px;">
-              <i class="fa-solid fa-bolt"></i>
-            </button>
-            <!-- Sound Toggle -->
-            <button type="button" id="btn-barcode-sound" onclick="toggleBarcodeSound()" class="btn btn-secondary btn-sm" title="Toggle Beep" style="padding: 4px 8px;">
-              <i class="fa-solid fa-volume-high"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Viewfinder Box (Matching Camera.html aesthetics) -->
-        <div class="barcode-viewfinder-container">
-          <video id="barcode-scanner-video" autoplay playsinline class="barcode-scanner-video"></video>
-          
-          <!-- Flash Overlay -->
-          <div id="barcode-flash-overlay" class="barcode-flash-overlay"></div>
-
-          <!-- Target Reticle (Corner Brackets) -->
-          <div class="barcode-reticle">
-            <div class="reticle-corner top-left"></div>
-            <div class="reticle-corner top-right"></div>
-            <div class="reticle-corner bottom-left"></div>
-            <div class="reticle-corner bottom-right"></div>
-            <!-- Red/Green Aim Line -->
-            <div class="barcode-laser-line"></div>
-          </div>
-
-          <!-- Notice if no camera or error -->
-          <div id="barcode-scanner-notice" class="barcode-scanner-notice hidden">
-            <i class="fa-solid fa-video-slash" style="font-size: 28px; color: #f87171; margin-bottom: 8px;"></i>
-            <strong id="barcode-notice-title" style="font-size: 14px; color: #fff;">Camera Error</strong>
-            <p id="barcode-notice-msg" style="font-size: 12px; color: #cbd5e1; margin: 4px 0 10px 0; max-width: 300px; text-align: center;">Unable to access camera</p>
-            <button type="button" onclick="startBarcodeScanner()" class="btn btn-primary btn-sm">Try Again</button>
-          </div>
-        </div>
-
-        <!-- Supported Barcode Types Notice -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: #64748b;">
-          <span><i class="fa-solid fa-shield-halved" style="color: #0284c7;"></i> Auto-detecting 1D &amp; 2D formats</span>
-          <span>UPC, EAN, CODE128, QR Code</span>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
-          <a href="javascript:void(0)" onclick="openFullScannerPage()" style="font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600;">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Full Scanner App (Camera.html)
-          </a>
-          <button type="button" onclick="closeBarcodeScannerModal()" class="btn btn-secondary">Cancel</button>
-        </div>
-
       </div>
     </div>
   </div>

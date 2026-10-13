@@ -1,65 +1,261 @@
-// ==========================================
-// 1. PRODUCT PHOTO CAMERA (DATABASE IMAGE)
-// ==========================================
-let mediaStream = null;
+// ==============================================================
+// UNIFIED SMART CAMERA SYSTEM FOR WOBS PRODUCT MANAGEMENT
+// Merged Barcode Scanning (ZXing) + Product Photo Capture
+// Single camera stream to completely eliminate hardware conflicts!
+// ==============================================================
 
-async function startCamera() {
-  // CRITICAL: Stop barcode scanner first to prevent camera hardware collision!
-  stopBarcodeScanner();
+let codeReader = null;
+let currentCameraStream = null;
+let currentCameraTrack = null;
+let selectedCameraDeviceId = null;
+let isCameraActive = false;
+let isTorchActive = false;
+let audioContext = null;
+let lastDetectedBarcode = "";
+let lastDetectedTime = 0;
 
-  const video = document.getElementById('camera-video');
-  const placeholder = document.getElementById('camera-placeholder');
-  const startBtn = document.getElementById('btn-start-camera');
-  const captureBtn = document.getElementById('btn-capture-photo');
-  const retakeBtn = document.getElementById('btn-retake-photo');
-  const imagePreview = document.getElementById('image-preview');
-
+// Web Audio API beep sound for barcode detection
+function playBeepSound() {
   try {
-
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    });
-
-    video.srcObject = mediaStream;
-
-
-    video.onloadedmetadata = () => {
-      video.play();
-      video.classList.remove('hidden');
-      if (placeholder) placeholder.classList.add('hidden');
-      if (imagePreview) imagePreview.classList.add('hidden');
-
-      if (startBtn) startBtn.classList.add('hidden');
-      if (retakeBtn) retakeBtn.classList.add('hidden');
-      if (captureBtn) captureBtn.classList.remove('hidden');
-    };
-  } catch (err) {
-    alert('Unable to access camera for photo. Please check camera permissions in your browser.');
-    console.error('Photo Camera Access Error:', err);
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioContext.currentTime);
+    gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.15);
+  } catch (e) {
+    console.warn("Audio Context warning:", e);
   }
 }
 
+// Start the unified camera for BOTH barcode scanning and photo capture
+async function startUnifiedCamera() {
+  const video = document.getElementById('camera-video');
+  const placeholder = document.getElementById('camera-placeholder');
+  const imagePreview = document.getElementById('image-preview');
+  const startBtn = document.getElementById('btn-start-camera');
+  const captureBtn = document.getElementById('btn-capture-photo');
+  const stopBtn = document.getElementById('btn-stop-camera');
+  const retakeBtn = document.getElementById('btn-retake-photo');
+  const reticle = document.getElementById('camera-reticle');
+  const toolbar = document.getElementById('camera-active-toolbar');
+
+  // If already active, don't restart
+  if (isCameraActive && video && video.srcObject) {
+    return;
+  }
+
+  // Ensure any previous stream is stopped first
+  stopUnifiedCamera();
+
+  // Reset UI elements
+  if (placeholder) placeholder.classList.add('hidden');
+  if (imagePreview) imagePreview.classList.add('hidden');
+  if (startBtn) startBtn.classList.add('hidden');
+  if (retakeBtn) retakeBtn.classList.add('hidden');
+  if (video) video.classList.remove('hidden');
+
+  try {
+    if (typeof ZXing === 'undefined') {
+      console.warn("ZXing library not yet loaded. Falling back to standard camera.");
+      await startFallbackPhotoCamera();
+      return;
+    }
+
+    if (!codeReader) {
+      codeReader = new ZXing.BrowserMultiFormatReader();
+    }
+
+    // List available video devices
+    let videoInputDevices = [];
+    try {
+      videoInputDevices = await codeReader.listVideoInputDevices();
+    } catch (e) {
+      console.warn("Could not list video devices:", e);
+    }
+
+    const deviceSelect = document.getElementById('camera-device-select');
+    if (deviceSelect) {
+      deviceSelect.innerHTML = '';
+      if (videoInputDevices.length > 0) {
+        // Prefer rear/environment/physical webcam over virtual camera if multiple exist
+        if (!selectedCameraDeviceId) {
+          let preferred = videoInputDevices.find(dev => {
+            const l = (dev.label || '').toLowerCase();
+            return (l.includes('back') || l.includes('rear') || l.includes('environment')) && !l.includes('virtual');
+          });
+          if (!preferred) {
+            preferred = videoInputDevices.find(dev => {
+              const l = (dev.label || '').toLowerCase();
+              return !l.includes('virtual') && !l.includes('bytecast') && !l.includes('obs');
+            });
+          }
+          selectedCameraDeviceId = preferred ? preferred.deviceId : videoInputDevices[0].deviceId;
+        }
+
+        videoInputDevices.forEach((dev, idx) => {
+          const opt = document.createElement('option');
+          opt.value = dev.deviceId;
+          opt.text = dev.label || `Camera ${idx + 1}`;
+          if (dev.deviceId === selectedCameraDeviceId) opt.selected = true;
+          deviceSelect.appendChild(opt);
+        });
+      } else {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.text = 'Default Camera';
+        deviceSelect.appendChild(opt);
+      }
+    }
+
+    isCameraActive = true;
+
+    // Decode from video device directly on 'camera-video'
+    codeReader.decodeFromVideoDevice(selectedCameraDeviceId, 'camera-video', (result, err) => {
+      if (result && isCameraActive) {
+        const text = result.getText();
+        if (text && text.trim() !== '') {
+          handleUnifiedBarcodeFound(text.trim());
+        }
+      }
+    }).then(controls => {
+      if (video && video.srcObject) {
+        currentCameraStream = video.srcObject;
+        const tracks = currentCameraStream.getVideoTracks();
+        if (tracks.length > 0) {
+          currentCameraTrack = tracks[0];
+          const caps = currentCameraTrack.getCapabilities ? currentCameraTrack.getCapabilities() : {};
+          const torchBtn = document.getElementById('btn-camera-torch');
+          if (torchBtn) {
+            torchBtn.disabled = !caps.torch;
+          }
+        }
+      }
+
+      if (reticle) reticle.classList.remove('hidden');
+      if (toolbar) toolbar.classList.remove('hidden');
+      if (captureBtn) captureBtn.classList.remove('hidden');
+      if (stopBtn) stopBtn.classList.remove('hidden');
+    }).catch(async (err) => {
+      console.warn("ZXing decodeFromVideoDevice failed, trying fallback stream:", err);
+      await startFallbackPhotoCamera();
+    });
+
+  } catch (err) {
+    console.error("Camera startup error:", err);
+    await startFallbackPhotoCamera();
+  }
+}
+
+// Fallback to standard getUserMedia if ZXing device binding encounters an issue
+async function startFallbackPhotoCamera() {
+  const video = document.getElementById('camera-video');
+  const captureBtn = document.getElementById('btn-capture-photo');
+  const stopBtn = document.getElementById('btn-stop-camera');
+  const placeholder = document.getElementById('camera-placeholder');
+
+  try {
+    currentCameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    if (video) {
+      video.srcObject = currentCameraStream;
+      video.play();
+      video.classList.remove('hidden');
+    }
+    isCameraActive = true;
+    if (placeholder) placeholder.classList.add('hidden');
+    if (captureBtn) captureBtn.classList.remove('hidden');
+    if (stopBtn) stopBtn.classList.remove('hidden');
+  } catch (e) {
+    alert("Unable to open camera. Please ensure camera permissions are allowed in your browser.");
+    stopUnifiedCamera();
+  }
+}
+
+// Handle detected barcode from the live video stream
+function handleUnifiedBarcodeFound(barcodeText) {
+  const now = Date.now();
+  if (barcodeText === lastDetectedBarcode && (now - lastDetectedTime) < 2000) {
+    return;
+  }
+  lastDetectedBarcode = barcodeText;
+  lastDetectedTime = now;
+
+  // 1. Audio feedback
+  playBeepSound();
+
+  // 2. Visual flash feedback on the viewfinder
+  triggerCameraFlash();
+
+  // 3. Fill the barcode input field
+  const barcodeInput = document.getElementById('prod-barcode');
+  if (barcodeInput) {
+    barcodeInput.value = barcodeText;
+    barcodeInput.classList.add('input-highlight-pulse');
+    setTimeout(() => barcodeInput.classList.remove('input-highlight-pulse'), 1500);
+  }
+
+  // 4. Update status badges
+  const successBox = document.getElementById('barcode-scan-success-msg');
+  const successText = document.getElementById('barcode-scan-success-text');
+  if (successBox && successText) {
+    successText.textContent = `Barcode Detected: ${barcodeText}`;
+    successBox.classList.remove('hidden');
+  }
+
+  const statusBadge = document.getElementById('camera-scan-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = `<i class="fa-solid fa-check"></i> Scanned: ${barcodeText}`;
+    statusBadge.style.background = '#16a34a';
+  }
+}
+
+// Trigger button on the barcode input field to focus or start camera
+function triggerBarcodeScanFromField() {
+  const video = document.getElementById('camera-video');
+  if (!isCameraActive || (video && video.classList.contains('hidden'))) {
+    startUnifiedCamera();
+  } else {
+    // Already running, flash the reticle to indicate ready to scan
+    triggerCameraFlash();
+    const barcodeInput = document.getElementById('prod-barcode');
+    if (barcodeInput) barcodeInput.focus();
+  }
+}
+
+// Snap photo from the live video frame and save to Base64 (products.image)
 function capturePhoto() {
   const video = document.getElementById('camera-video');
   const canvas = document.getElementById('camera-canvas');
   const imagePreview = document.getElementById('image-preview');
   const photoInput = document.getElementById('prod-photo-base64');
+  const retakeBtn = document.getElementById('btn-retake-photo');
+
+  if (!video || !canvas) return;
 
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
 
-  const context = canvas.getContext('2d');
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   const base64Image = canvas.toDataURL('image/jpeg', 0.85);
 
-
   if (photoInput) {
     photoInput.value = base64Image;
-    console.log("📸 Image written to input! Length:", photoInput.value.length);
-  } else {
-    console.error("❌ Could not find element #prod-photo-base64");
+    console.log("📸 Product photo captured to Base64! Length:", photoInput.value.length);
   }
 
   if (imagePreview) {
@@ -67,16 +263,13 @@ function capturePhoto() {
     imagePreview.classList.remove('hidden');
   }
 
-  video.classList.add('hidden');
+  // Stop camera stream now that photo is captured
+  stopUnifiedCamera();
 
-  const captureBtn = document.getElementById('btn-capture-photo');
-  const retakeBtn = document.getElementById('btn-retake-photo');
-  if (captureBtn) captureBtn.classList.add('hidden');
   if (retakeBtn) retakeBtn.classList.remove('hidden');
-
-  stopCameraStream();
 }
 
+// Retake photo
 function retakePhoto() {
   const photoInput = document.getElementById('prod-photo-base64');
   const retakeBtn = document.getElementById('btn-retake-photo');
@@ -84,268 +277,39 @@ function retakePhoto() {
   if (photoInput) photoInput.value = '';
   if (retakeBtn) retakeBtn.classList.add('hidden');
 
-  startCamera();
+  startUnifiedCamera();
 }
 
-function stopCameraStream() {
-  if (mediaStream) {
-    try {
-      mediaStream.getTracks().forEach(track => {
-        track.stop();
-      });
-    } catch (e) {
-      console.warn("Error stopping photo camera tracks:", e);
-    }
-    mediaStream = null;
-  }
-  const video = document.getElementById('camera-video');
-  if (video) {
-    video.srcObject = null;
-  }
+// Switch camera device (e.g. from front to rear camera)
+function changeCameraDevice(newDeviceId) {
+  if (!newDeviceId || newDeviceId === selectedCameraDeviceId) return;
+  selectedCameraDeviceId = newDeviceId;
+  stopUnifiedCamera();
+  setTimeout(() => {
+    startUnifiedCamera();
+  }, 200);
 }
 
-// Clean up both cameras and UI state when product modal closes
-function closeProductModal() {
-  stopCameraStream();
-  stopBarcodeScanner();
+// Toggle torch/flashlight if supported
+function toggleCameraTorch() {
+  if (!currentCameraTrack) return;
+  const caps = currentCameraTrack.getCapabilities ? currentCameraTrack.getCapabilities() : {};
+  if (!caps.torch) return;
 
-  const video = document.getElementById('camera-video');
-  const preview = document.getElementById('image-preview');
-  const placeholder = document.getElementById('camera-placeholder');
-  const startBtn = document.getElementById('btn-start-camera');
-  const captureBtn = document.getElementById('btn-capture-photo');
-  const retakeBtn = document.getElementById('btn-retake-photo');
-  const modal = document.getElementById('modal-product');
-
-  if (video) video.classList.add('hidden');
-  if (preview) preview.classList.add('hidden');
-  if (placeholder) placeholder.classList.remove('hidden');
-
-  if (startBtn) startBtn.classList.remove('hidden');
-  if (captureBtn) captureBtn.classList.add('hidden');
-  if (retakeBtn) retakeBtn.classList.add('hidden');
-
-  if (modal) modal.classList.add('hidden');
-}
-
-// ==========================================
-// 2. LIVE BARCODE SCANNER (ZXing Engine from Camera.js)
-// ==========================================
-let barcodeReader = null;
-let barcodeDeviceId = null;
-let barcodeStreamTrack = null;
-let barcodeSoundEnabled = true;
-let barcodeTorchActive = false;
-let isBarcodeScanning = false;
-let audioCtx = null;
-
-function playBeepSound() {
-  if (!barcodeSoundEnabled) return;
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.15);
-  } catch (e) {
-    console.warn("Audio Context blocked or unsupported:", e);
-  }
-}
-
-async function openBarcodeScannerModal() {
-  // CRITICAL: Stop photo camera before opening barcode scanner to prevent hardware collision!
-  stopCameraStream();
-
-  const photoVideo = document.getElementById('camera-video');
-  const startBtn = document.getElementById('btn-start-camera');
-  const captureBtn = document.getElementById('btn-capture-photo');
-  const retakeBtn = document.getElementById('btn-retake-photo');
-  const placeholder = document.getElementById('camera-placeholder');
-  const preview = document.getElementById('image-preview');
-
-  if (photoVideo) photoVideo.classList.add('hidden');
-  if (captureBtn) captureBtn.classList.add('hidden');
-  if (preview && preview.src && !preview.classList.contains('hidden')) {
-    if (retakeBtn) retakeBtn.classList.remove('hidden');
-  } else {
-    if (placeholder) placeholder.classList.remove('hidden');
-    if (startBtn) startBtn.classList.remove('hidden');
-  }
-
-  // Open the scanner modal
-  const modal = document.getElementById('modal-barcode-scanner');
-  if (modal) modal.classList.remove('hidden');
-
-  // Reset notices
-  const notice = document.getElementById('barcode-scanner-notice');
-  if (notice) notice.classList.add('hidden');
-
-  await startBarcodeScanner();
-}
-
-function closeBarcodeScannerModal() {
-  stopBarcodeScanner();
-  const modal = document.getElementById('modal-barcode-scanner');
-  if (modal) modal.classList.add('hidden');
-}
-
-async function startBarcodeScanner() {
-  stopBarcodeScanner();
-
-  if (typeof ZXing === 'undefined') {
-    showBarcodeNotice("Library Error", "ZXing Barcode library is loading or blocked. Please refresh.");
-    return;
-  }
-
-  try {
-    if (!barcodeReader) {
-      barcodeReader = new ZXing.BrowserMultiFormatReader();
-    }
-
-    const videoInputDevices = await barcodeReader.listVideoInputDevices();
-    const cameraSelect = document.getElementById('barcode-camera-select');
-    if (cameraSelect) cameraSelect.innerHTML = '';
-
-    if (!videoInputDevices || videoInputDevices.length === 0) {
-      showBarcodeNotice("No Camera Found", "No video camera detected on this system.");
-      return;
-    }
-
-    // Default to back/rear camera if available
-    let backCam = videoInputDevices.find(dev => {
-      const label = (dev.label || '').toLowerCase();
-      return label.includes('back') || label.includes('rear') || label.includes('environment');
-    });
-    barcodeDeviceId = backCam ? backCam.deviceId : videoInputDevices[0].deviceId;
-
-    if (cameraSelect) {
-      videoInputDevices.forEach((device, idx) => {
-        const opt = document.createElement('option');
-        opt.value = device.deviceId;
-        opt.text = device.label || `Camera ${idx + 1}`;
-        if (device.deviceId === barcodeDeviceId) opt.selected = true;
-        cameraSelect.appendChild(opt);
-      });
-    }
-
-    const notice = document.getElementById('barcode-scanner-notice');
-    if (notice) notice.classList.add('hidden');
-
-    isBarcodeScanning = true;
-    barcodeTorchActive = false;
-
-    barcodeReader.decodeFromVideoDevice(barcodeDeviceId, 'barcode-scanner-video', (result, err) => {
-      if (result && isBarcodeScanning) {
-        const text = result.getText();
-        if (text && text.trim() !== '') {
-          handleBarcodeDetected(text.trim());
-        }
-      }
-    }).then(controls => {
-      const videoElem = document.getElementById('barcode-scanner-video');
-      if (videoElem && videoElem.srcObject) {
-        const tracks = videoElem.srcObject.getVideoTracks();
-        if (tracks.length > 0) {
-          barcodeStreamTrack = tracks[0];
-          const capabilities = barcodeStreamTrack.getCapabilities ? barcodeStreamTrack.getCapabilities() : {};
-          const torchBtn = document.getElementById('btn-barcode-torch');
-          if (torchBtn) {
-            torchBtn.disabled = !capabilities.torch;
-          }
-        }
-      }
-    }).catch(err => {
-      console.error("Barcode decode error:", err);
-      showBarcodeNotice("Camera In Use", "Could not access camera. Please make sure no other app or tab is using it.");
-    });
-
-  } catch (err) {
-    console.error("Barcode Scanner Init Error:", err);
-    showBarcodeNotice("Camera Permission Denied", "Please allow camera access in your browser address bar.");
-  }
-}
-
-function stopBarcodeScanner() {
-  isBarcodeScanning = false;
-  if (barcodeReader) {
-    try {
-      barcodeReader.reset();
-    } catch (e) {
-      console.warn("Barcode reader reset error:", e);
-    }
-  }
-
-  if (barcodeStreamTrack) {
-    try {
-      barcodeStreamTrack.stop();
-    } catch (e) { }
-    barcodeStreamTrack = null;
-  }
-
-  const barcodeVideo = document.getElementById('barcode-scanner-video');
-  if (barcodeVideo && barcodeVideo.srcObject) {
-    try {
-      barcodeVideo.srcObject.getTracks().forEach(t => t.stop());
-    } catch (e) { }
-    barcodeVideo.srcObject = null;
-  }
-}
-
-function changeBarcodeCamera(newDeviceId) {
-  if (!newDeviceId || newDeviceId === barcodeDeviceId) return;
-  barcodeDeviceId = newDeviceId;
-  startBarcodeScanner();
-}
-
-function toggleBarcodeTorch() {
-  if (!barcodeStreamTrack) return;
-  const capabilities = barcodeStreamTrack.getCapabilities ? barcodeStreamTrack.getCapabilities() : {};
-  if (!capabilities.torch) return;
-
-  barcodeTorchActive = !barcodeTorchActive;
-  barcodeStreamTrack.applyConstraints({
-    advanced: [{ torch: barcodeTorchActive }]
+  isTorchActive = !isTorchActive;
+  currentCameraTrack.applyConstraints({
+    advanced: [{ torch: isTorchActive }]
   }).then(() => {
-    const torchBtn = document.getElementById('btn-barcode-torch');
+    const torchBtn = document.getElementById('btn-camera-torch');
     if (torchBtn) {
-      torchBtn.classList.toggle('btn-primary', barcodeTorchActive);
-      torchBtn.classList.toggle('btn-secondary', !barcodeTorchActive);
+      torchBtn.style.color = isTorchActive ? '#fbbf24' : '#ffffff';
     }
-  }).catch(e => console.warn("Torch error:", e));
+  }).catch(e => console.warn("Torch constraint error:", e));
 }
 
-function toggleBarcodeSound() {
-  barcodeSoundEnabled = !barcodeSoundEnabled;
-  const soundBtn = document.getElementById('btn-barcode-sound');
-  if (soundBtn) {
-    soundBtn.innerHTML = barcodeSoundEnabled
-      ? '<i class="fa-solid fa-volume-high"></i>'
-      : '<i class="fa-solid fa-volume-xmark" style="color: #ef4444;"></i>';
-  }
-}
-
-function showBarcodeNotice(title, msg) {
-  const notice = document.getElementById('barcode-scanner-notice');
-  const noticeTitle = document.getElementById('barcode-notice-title');
-  const noticeMsg = document.getElementById('barcode-notice-msg');
-  if (noticeTitle) noticeTitle.innerText = title;
-  if (noticeMsg) noticeMsg.innerText = msg;
-  if (notice) notice.classList.remove('hidden');
-}
-
-function triggerBarcodeFlash() {
-  const flash = document.getElementById('barcode-flash-overlay');
+// Flash overlay animation on barcode detection
+function triggerCameraFlash() {
+  const flash = document.getElementById('camera-flash-overlay');
   if (flash) {
     flash.classList.remove('active');
     void flash.offsetWidth;
@@ -353,41 +317,96 @@ function triggerBarcodeFlash() {
   }
 }
 
-function handleBarcodeDetected(scannedCode) {
-  if (!scannedCode) return;
+// Stop unified camera completely and release all tracks
+function stopUnifiedCamera() {
+  isCameraActive = false;
 
-  // Audio feedback
-  playBeepSound();
-
-  // Visual flash
-  triggerBarcodeFlash();
-
-  // Populate barcode input in Product modal
-  const input = document.getElementById('prod-barcode');
-  if (input) {
-    input.value = scannedCode;
-    input.classList.add('input-highlight-pulse');
-    setTimeout(() => input.classList.remove('input-highlight-pulse'), 1500);
+  if (codeReader) {
+    try {
+      codeReader.reset();
+    } catch (e) {}
   }
 
-  // Show success indicator message below barcode input
-  const successBox = document.getElementById('barcode-scan-success-msg');
-  const successText = document.getElementById('barcode-scan-success-text');
-  if (successBox && successText) {
-    successText.textContent = `Scanned Barcode: ${scannedCode}`;
-    successBox.classList.remove('hidden');
+  if (currentCameraTrack) {
+    try {
+      currentCameraTrack.stop();
+    } catch (e) {}
+    currentCameraTrack = null;
   }
 
-  // Cleanly shut down barcode camera immediately
-  stopBarcodeScanner();
+  if (currentCameraStream) {
+    try {
+      currentCameraStream.getTracks().forEach(t => t.stop());
+    } catch (e) {}
+    currentCameraStream = null;
+  }
 
-  // Close scanner modal
-  closeBarcodeScannerModal();
+  const video = document.getElementById('camera-video');
+  if (video) {
+    if (video.srcObject) {
+      try {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      } catch (e) {}
+      video.srcObject = null;
+    }
+    video.pause();
+    video.classList.add('hidden');
+  }
+
+  const reticle = document.getElementById('camera-reticle');
+  const toolbar = document.getElementById('camera-active-toolbar');
+  const captureBtn = document.getElementById('btn-capture-photo');
+  const stopBtn = document.getElementById('btn-stop-camera');
+  const startBtn = document.getElementById('btn-start-camera');
+  const retakeBtn = document.getElementById('btn-retake-photo');
+  const imagePreview = document.getElementById('image-preview');
+  const placeholder = document.getElementById('camera-placeholder');
+
+  if (reticle) reticle.classList.add('hidden');
+  if (toolbar) toolbar.classList.add('hidden');
+  if (captureBtn) captureBtn.classList.add('hidden');
+  if (stopBtn) stopBtn.classList.add('hidden');
+
+  // If there's an image preview, show retake button; otherwise show start button & placeholder
+  if (imagePreview && imagePreview.src && !imagePreview.classList.contains('hidden')) {
+    if (retakeBtn) retakeBtn.classList.remove('hidden');
+  } else {
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (startBtn) startBtn.classList.remove('hidden');
+  }
 }
 
-// Full Scanner App (Camera.html) Integration
+// Backward-compatible aliases
+function startCamera() {
+  return startUnifiedCamera();
+}
+
+function stopCameraStream() {
+  return stopUnifiedCamera();
+}
+
+function stopBarcodeScanner() {
+  return stopUnifiedCamera();
+}
+
+function openBarcodeScannerModal() {
+  return triggerBarcodeScanFromField();
+}
+
+function closeBarcodeScannerModal() {
+  return stopUnifiedCamera();
+}
+
+// Clean up state when closing product modal
+function closeProductModal() {
+  stopUnifiedCamera();
+
+  const modal = document.getElementById('modal-product');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Standalone Scanner App (Camera.html) Integration
 function openFullScannerPage() {
-  // Save draft form values
   const draft = {
     id: document.getElementById('prod-id')?.value || '',
     name: document.getElementById('prod-name')?.value || '',
@@ -400,10 +419,7 @@ function openFullScannerPage() {
   };
   sessionStorage.setItem('wobs_product_draft', JSON.stringify(draft));
 
-  // Stop both cameras completely before navigating
-  stopCameraStream();
-  stopBarcodeScanner();
-
+  stopUnifiedCamera();
   window.location.href = "Camera.html?target=addproduct";
 }
 
@@ -460,7 +476,7 @@ function checkScannedBarcodeReturn() {
       const successBox = document.getElementById('barcode-scan-success-msg');
       const successText = document.getElementById('barcode-scan-success-text');
       if (successBox && successText) {
-        successText.textContent = `Scanned Barcode: ${scannedCode}`;
+        successText.textContent = `Barcode Detected: ${scannedCode}`;
         successBox.classList.remove('hidden');
       }
     }
