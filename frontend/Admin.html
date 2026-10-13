@@ -8,6 +8,8 @@
   <link rel="shortcut icon" href="#">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- ZXing Barcode Decoder Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 </head>
 <body>
 
@@ -272,7 +274,15 @@
 
         <div class="form-group">
           <label for="prod-barcode">Barcode Number *</label>
-          <input type="text" id="prod-barcode" placeholder="Barcode Number" class="form-input">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="prod-barcode" placeholder="Barcode Number" class="form-input" style="flex: 1;">
+            <button type="button" id="btn-open-barcode-scanner" onclick="openBarcodeScannerModal()" class="btn" style="background-color: #0f172a; color: #ffffff; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; padding: 8px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-barcode"></i> Scan Barcode
+            </button>
+          </div>
+          <div id="barcode-scan-success-msg" class="hidden" style="margin-top: 6px; font-size: 12px; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-check"></i> <span id="barcode-scan-success-text">Barcode scanned successfully!</span>
+          </div>
         </div>
 
         <div class="form-group">
@@ -311,6 +321,85 @@
           <button onclick="closeProductModal()" class="btn btn-secondary">Cancel</button>
           <button onclick="saveProduct()" class="btn btn-primary">Save Product</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LIVE BARCODE SCANNER (ZXing Engine from Camera.js) -->
+  <div id="modal-barcode-scanner" class="modal-overlay hidden" style="z-index: 210;">
+    <div class="modal-card" style="max-width: 520px; width: 95%;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-barcode" style="color: #38bdf8;"></i>
+          <h3 style="margin: 0;">Scan Product Barcode</h3>
+        </div>
+        <button type="button" onclick="closeBarcodeScannerModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        
+        <!-- Top Scanner Controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span id="barcode-scanner-status" class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 700; padding: 4px 10px; font-size: 11px;">
+              <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16a34a; margin-right: 4px;"></span> Ready to Scan
+            </span>
+          </div>
+          
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <!-- Camera Selector -->
+            <select id="barcode-camera-select" onchange="changeBarcodeCamera(this.value)" class="form-select" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; max-width: 160px;">
+              <option value="">Detecting cameras...</option>
+            </select>
+            <!-- Torch Toggle -->
+            <button type="button" id="btn-barcode-torch" onclick="toggleBarcodeTorch()" class="btn btn-secondary btn-sm" title="Toggle Flashlight" disabled style="padding: 4px 8px;">
+              <i class="fa-solid fa-bolt"></i>
+            </button>
+            <!-- Sound Toggle -->
+            <button type="button" id="btn-barcode-sound" onclick="toggleBarcodeSound()" class="btn btn-secondary btn-sm" title="Toggle Beep" style="padding: 4px 8px;">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Viewfinder Box (Matching Camera.html aesthetics) -->
+        <div class="barcode-viewfinder-container">
+          <video id="barcode-scanner-video" autoplay playsinline class="barcode-scanner-video"></video>
+          
+          <!-- Flash Overlay -->
+          <div id="barcode-flash-overlay" class="barcode-flash-overlay"></div>
+
+          <!-- Target Reticle (Corner Brackets) -->
+          <div class="barcode-reticle">
+            <div class="reticle-corner top-left"></div>
+            <div class="reticle-corner top-right"></div>
+            <div class="reticle-corner bottom-left"></div>
+            <div class="reticle-corner bottom-right"></div>
+            <!-- Red/Green Aim Line -->
+            <div class="barcode-laser-line"></div>
+          </div>
+
+          <!-- Notice if no camera or error -->
+          <div id="barcode-scanner-notice" class="barcode-scanner-notice hidden">
+            <i class="fa-solid fa-video-slash" style="font-size: 28px; color: #f87171; margin-bottom: 8px;"></i>
+            <strong id="barcode-notice-title" style="font-size: 14px; color: #fff;">Camera Error</strong>
+            <p id="barcode-notice-msg" style="font-size: 12px; color: #cbd5e1; margin: 4px 0 10px 0; max-width: 300px; text-align: center;">Unable to access camera</p>
+            <button type="button" onclick="startBarcodeScanner()" class="btn btn-primary btn-sm">Try Again</button>
+          </div>
+        </div>
+
+        <!-- Supported Barcode Types Notice -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: #64748b;">
+          <span><i class="fa-solid fa-shield-halved" style="color: #0284c7;"></i> Auto-detecting 1D &amp; 2D formats</span>
+          <span>UPC, EAN, CODE128, QR Code</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+          <a href="javascript:void(0)" onclick="openFullScannerPage()" style="font-size: 11px; color: #0284c7; text-decoration: none; font-weight: 600;">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Full Scanner App (Camera.html)
+          </a>
+          <button type="button" onclick="closeBarcodeScannerModal()" class="btn btn-secondary">Cancel</button>
+        </div>
+
       </div>
     </div>
   </div>

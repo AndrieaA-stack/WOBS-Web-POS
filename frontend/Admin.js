@@ -145,6 +145,12 @@ function renderProductsTable() {
 }
 
 function openProductModal() {
+  if (typeof stopCameraStream === 'function') stopCameraStream();
+  if (typeof stopBarcodeScanner === 'function') stopBarcodeScanner();
+
+  const successBox = document.getElementById('barcode-scan-success-msg');
+  if (successBox) successBox.classList.add('hidden');
+
   document.getElementById('modal-product-title').textContent = "Add New Product";
   document.getElementById('prod-id').value = "p_" + Date.now();
   document.getElementById('prod-barcode').value = "";
@@ -171,6 +177,12 @@ function openProductModal() {
 }
 
 function editProduct(id) {
+  if (typeof stopCameraStream === 'function') stopCameraStream();
+  if (typeof stopBarcodeScanner === 'function') stopBarcodeScanner();
+
+  const successBox = document.getElementById('barcode-scan-success-msg');
+  if (successBox) successBox.classList.add('hidden');
+
   const p = productsData.find(item => item.id === id);
   if (!p) return;
 
@@ -213,7 +225,12 @@ function closeProductModal() {
   if (typeof stopCameraStream === 'function') {
     stopCameraStream();
   }
+  if (typeof stopBarcodeScanner === 'function') {
+    stopBarcodeScanner();
+  }
   document.getElementById('modal-product').classList.add('hidden');
+  const scannerModal = document.getElementById('modal-barcode-scanner');
+  if (scannerModal) scannerModal.classList.add('hidden');
 }
 
 async function saveProduct() {
@@ -704,4 +721,7 @@ window.onload = function() {
   checkAdminAccess();
   fetchProducts();
   fetchPendingAdmins();
+  if (typeof checkScannedBarcodeReturn === 'function') {
+    checkScannedBarcodeReturn();
+  }
 };

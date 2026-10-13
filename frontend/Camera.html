@@ -233,13 +233,18 @@
                     </div>
 
                     <!-- Quick Barcode Action Buttons (Hidden until scan) -->
-                    <div id="liveActionGroup" class="pt-4 border-t border-slate-100 grid grid-cols-2 gap-2 hidden">
-                        <button id="liveCopyBtn" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 border border-slate-200">
-                            <i class="fa-regular fa-copy"></i> Copy Code
+                    <div id="liveActionGroup" class="pt-4 border-t border-slate-100 flex flex-col gap-2 hidden">
+                        <button id="liveUseForProductBtn" onclick="useBarcodeForProduct()" class="w-full px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20">
+                            <i class="fa-solid fa-cart-plus"></i> Use as Product Barcode in Admin
                         </button>
-                        <button id="liveSearchBtn" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 shadow-md shadow-sky-600/20">
-                            <i class="fa-solid fa-magnifying-glass"></i> Web Search
-                        </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="liveCopyBtn" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 border border-slate-200">
+                                <i class="fa-regular fa-copy"></i> Copy Code
+                            </button>
+                            <button id="liveSearchBtn" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium rounded-lg transition flex items-center justify-center gap-1.5 shadow-md shadow-sky-600/20">
+                                <i class="fa-solid fa-magnifying-glass"></i> Web Search
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

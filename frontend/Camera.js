@@ -18,12 +18,39 @@
                     console.warn("Scanner stop error:", e);
                 }
             }
+            if (currentStreamTrack) {
+                try { currentStreamTrack.stop(); } catch (e) {}
+                currentStreamTrack = null;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('target') === 'addproduct') {
+                window.location.href = "Admin.html";
+                return;
+            }
 
             if (document.referrer && (document.referrer.includes("Admin.html") || document.referrer.includes("Customer.html"))) {
                 window.location.href = document.referrer;
             } else {
-                window.location.href = "Customer.html";
+                window.location.href = "Admin.html";
             }
+        }
+
+        function useBarcodeForProduct(scannedCode) {
+            const code = scannedCode || lastScannedText;
+            if (!code) {
+                showToast("No barcode detected yet", "warning");
+                return;
+            }
+            if (codeReader) {
+                try { codeReader.reset(); } catch (e) {}
+            }
+            if (currentStreamTrack) {
+                try { currentStreamTrack.stop(); } catch (e) {}
+                currentStreamTrack = null;
+            }
+            sessionStorage.setItem('wobs_scanned_barcode', code);
+            window.location.href = "Admin.html?barcode=" + encodeURIComponent(code);
         }
 
         // Audio Context Synthesizer for scan beep feedback
@@ -553,6 +580,9 @@
                     <td class="p-3 font-mono font-bold text-slate-800 max-w-xs truncate">${escapeHtml(item.code)}</td>
                     <td class="p-3 text-slate-500 text-[11px]">${escapeHtml(item.time)}</td>
                     <td class="p-3 text-right space-x-1">
+                        <button onclick="useBarcodeForProduct('${escapeHtml(item.code)}')" title="Use as Product Barcode in Admin" class="p-1.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition border border-emerald-200">
+                            <i class="fa-solid fa-cart-plus"></i>
+                        </button>
                         <button onclick="copyToClipboard('${escapeHtml(item.code)}')" title="Copy Code" class="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition border border-slate-200">
                             <i class="fa-regular fa-copy"></i>
                         </button>
