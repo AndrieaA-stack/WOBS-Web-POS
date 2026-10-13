@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS pending_admin_accounts (
 -- 5. Seed Primary Admin Account (Gabriel / Gabriel123) into admin_accounts
 INSERT INTO admin_accounts (fullname, username, password)
 VALUES ('Primary Admin', 'Gabriel', 'Gabriel123')
-ON CONFLICT (username) DO UPDATE SET password = 'Gabriel123';
+ON CONFLICT (username) DO NOTHING;
 
 -- 6. Seed Default Inventory Items
 INSERT INTO products (id, barcode, name, category, cost, price, stock, expiry) VALUES

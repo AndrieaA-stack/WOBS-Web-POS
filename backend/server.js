@@ -9,6 +9,9 @@ process.on('unhandledRejection', (reason, promise) => {
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 app.use(cors());
@@ -18,75 +21,24 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Database Connection
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'wobs_db',
-  password: 'gab',
-  port: 5432,
-});
+const pool = new Pool(process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      user: process.env.PGUSER || 'postgres',
+      host: process.env.PGHOST || 'localhost',
+      database: process.env.PGDATABASE || 'wobs_db',
+      password: process.env.PGPASSWORD || 'gab',
+      port: Number(process.env.PGPORT) || 5432,
+    });
 
-// Non-blocking connection test
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ Database connection error:', err.message);
-  } else {
-    console.log('✅ Connected to PostgreSQL database: wobs_db');
-  }
-});
-
-// Pool error handling
 pool.on('error', (err) => {
   console.error('Unexpected pool error on idle client:', err);
 });
 
-// Startup connection verification
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('❌ Error connecting to PostgreSQL:', err.stack);
-  }
-  console.log(' Connected to PostgreSQL database: wobs_db');
-  release();
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'Welcomepage.html'));
 });
-
-// Initialize Admin & Status Tables
-// Initialize Database Tables
-async function initDb() {
-  try {
-    // 1. Approved Admin Accounts Table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS admin_accounts (
-        id SERIAL PRIMARY KEY,
-        fullname VARCHAR(100) NOT NULL,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(100) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 2. Separate Pending Admin Accounts Table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS pending_admin_accounts (
-        id SERIAL PRIMARY KEY,
-        fullname VARCHAR(100) NOT NULL,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(100) NOT NULL,
-        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 3. Seed Gabriel / Gabriel123 into admin_accounts
-    await pool.query(`
-      INSERT INTO admin_accounts (fullname, username, password)
-      VALUES ('Primary Admin', 'Gabriel', 'Gabriel123')
-      ON CONFLICT (username) DO UPDATE SET password = 'Gabriel123';
-    `);
-    console.log("👑 Primary admin seeded in admin_accounts: Gabriel / Gabriel123");
-  } catch (err) {
-    console.error("❌ DB Table init error:", err.message);
-  }
-}
-initDb();
 
 // ---------------- ADMIN ENDPOINTS ----------------
 
@@ -190,8 +142,6 @@ app.put('/api/admin/approve/:id', async (req, res) => {
     res.status(500).json({ error: "Action failed." });
   }
 });
-initDb();
-
 // ==================== HEALTH & PRODUCT ROUTES ====================
 
 // GET: Health Check
@@ -421,16 +371,22 @@ app.put('/api/admin/approve/:id', async (req, res) => {
 
 // ==================== SERVER LISTEN ====================
 
-const PORT = 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+async function startServer() {
+  try {
+    const schema = await fs.readFile(path.join(__dirname, 'schema.sql'), 'utf8');
+    await pool.query(schema);
+    console.log('✅ Database schema initialized');
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use! Kill existing node processes or restart VS Code.`);
-  } else {
-    console.error('❌ Server error:', err);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to initialize database:', err);
+    await pool.end();
+    process.exitCode = 1;
   }
-});
+}
+
+startServer();
