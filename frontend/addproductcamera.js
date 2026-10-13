@@ -15,12 +15,14 @@ async function startCamera() {
   const imagePreview = document.getElementById('image-preview');
 
   try {
+
     mediaStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     });
 
     video.srcObject = mediaStream;
+
 
     video.onloadedmetadata = () => {
       video.play();
@@ -51,6 +53,7 @@ function capturePhoto() {
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   const base64Image = canvas.toDataURL('image/jpeg', 0.85);
+
 
   if (photoInput) {
     photoInput.value = base64Image;
@@ -286,7 +289,7 @@ function stopBarcodeScanner() {
   if (barcodeStreamTrack) {
     try {
       barcodeStreamTrack.stop();
-    } catch (e) {}
+    } catch (e) { }
     barcodeStreamTrack = null;
   }
 
@@ -294,7 +297,7 @@ function stopBarcodeScanner() {
   if (barcodeVideo && barcodeVideo.srcObject) {
     try {
       barcodeVideo.srcObject.getTracks().forEach(t => t.stop());
-    } catch (e) {}
+    } catch (e) { }
     barcodeVideo.srcObject = null;
   }
 }
