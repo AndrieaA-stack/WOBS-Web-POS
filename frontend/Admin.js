@@ -409,17 +409,6 @@ function renderTransactionsTable() {
   const onlineTxns = transactionsData.filter(t => !isWalkInTransaction(t));
   const walkinTxns = transactionsData.filter(t => isWalkInTransaction(t));
 
-  // Sync count badges
-  const onlineBadge = document.getElementById('badge-online-count');
-  const onlineBadgeSub = document.getElementById('badge-online-count-sub');
-  const walkinBadge = document.getElementById('badge-walkin-count');
-  const walkinBadgeSub = document.getElementById('badge-walkin-count-sub');
-
-  if (onlineBadge) onlineBadge.textContent = onlineTxns.length;
-  if (onlineBadgeSub) onlineBadgeSub.textContent = onlineTxns.length;
-  if (walkinBadge) walkinBadge.textContent = walkinTxns.length;
-  if (walkinBadgeSub) walkinBadgeSub.textContent = walkinTxns.length;
-
   renderOnlineOrdersTable(onlineTxns);
   renderWalkinTransactionsTable(walkinTxns);
 }
