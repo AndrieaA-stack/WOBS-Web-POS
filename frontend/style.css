@@ -1204,9 +1204,6 @@ body {
   transform: translate(-50%, -50%);
   width: 75%;
   height: 60%;
-  border-radius: 8px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.04);
   pointer-events: none;
   z-index: 10;
 }
@@ -1249,23 +1246,6 @@ body {
   border-bottom-width: 3px;
   border-right-width: 3px;
   border-bottom-right-radius: 6px;
-}
-
-.barcode-laser-line {
-  position: absolute;
-  left: 5%;
-  right: 5%;
-  top: 50%;
-  height: 2px;
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8, 0 0 12px #38bdf8;
-  animation: laser-scan 2s infinite ease-in-out;
-}
-
-@keyframes laser-scan {
-  0% { top: 15%; opacity: 0.6; }
-  50% { top: 85%; opacity: 1; }
-  100% { top: 15%; opacity: 0.6; }
 }
 
 .barcode-scanner-notice {
