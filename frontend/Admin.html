@@ -83,31 +83,39 @@
       </div>
     </div>
 
-    <!-- TAB 2: TRANSACTIONS & PROOF SCREENSHOTS -->
-    <div id="section-txns" class="admin-section hidden">
-      <div class="card mb-3">
-        <h3>Order Transactions Log</h3>
-        <p class="text-muted" style="font-size:12px;">View completed customer orders, delivery addresses, GCash payment screenshots, and manage order statuses.</p>
-      </div>
+    
+    <!-- TRANSACTIONS & ORDERS TABLE -->
+<div class="table-container">
+  <div class="table-header-box">
+    <h2>Transaction Records & Order Fulfillment</h2>
+    <p>Manage customer orders, verify payment screenshots, and update delivery statuses in real-time.</p>
+  </div>
 
-      <div class="card">
-        <table class="table" style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr style="text-align:left; border-bottom:2px solid #334155; padding-bottom:8px;">
-              <th>Txn ID</th>
-              <th>Date / Time</th>
-              <th>Customer Name</th>
-              <th>Delivery Address</th>
-              <th>Total Paid</th>
-              <th>Payment Screenshot</th>
-              <th>Items Ordered</th>
-              <th>Order Status</th>
-            </tr>
-          </thead>
-          <tbody id="admin-txns-list"></tbody>
-        </table>
-      </div>
-    </div>
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>Txn ID</th>
+          <th>Date / Time</th>
+          <th>Customer Name</th>
+          <th>Delivery Address</th>
+          <th class="text-right">Total Paid</th>
+          <th class="text-center">Payment Screenshot</th>
+          <th>Items Ordered</th>
+          <th class="text-center">Order Status</th>
+        </tr>
+      </thead>
+      <tbody id="admin-txns-list">
+        <!-- Rendered dynamically by Admin.js -->
+        <tr>
+          <td colspan="8" class="text-center text-muted" style="padding: 30px;">
+            Loading transactions from database...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
     <!-- TAB 3: SALES & PRODUCT ANALYTICS -->
     <div id="section-analytics" class="admin-section hidden">
