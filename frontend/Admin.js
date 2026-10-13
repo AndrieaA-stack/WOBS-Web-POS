@@ -782,6 +782,9 @@ let posCart = [];
 let posSelectedCategory = 'All';
 let posPaymentMethod = 'Cash';
 let posScannerReader = null;
+let posGcashReceiptPhoto = null;
+let posReceiptCameraStream = null;
+let posReceiptSelectedDeviceId = null;
 
 function initAdminPos() {
   const cashier = sessionStorage.getItem('wobs_admin_username') || 'Admin';
@@ -948,6 +951,7 @@ function clearAdminPosCart() {
   posCart = [];
   const tenderedInput = document.getElementById('admin-pos-cash-tendered');
   if (tenderedInput) tenderedInput.value = '';
+  removeGcashReceiptPhoto();
   renderAdminPosTicket();
   showAdminPosFeedback('Register ticket cleared.', 'primary');
 }
@@ -1163,6 +1167,179 @@ function closePosCameraScanner() {
   }
 }
 
+// ==================== WALK-IN GCASH RECEIPT CAMERA ====================
+async function openGcashReceiptCamera() {
+  const modal = document.getElementById('modal-gcash-receipt-camera');
+  const video = document.getElementById('pos-receipt-video');
+  const msg = document.getElementById('pos-receipt-camera-msg');
+  const select = document.getElementById('pos-receipt-camera-select');
+
+  if (modal) modal.classList.remove('hidden');
+  if (msg) msg.textContent = 'Starting camera preview...';
+
+  // Stop any lingering camera stream first
+  closeGcashReceiptCameraStream();
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (msg) msg.textContent = '❌ Camera not supported on this browser or connection.';
+    return;
+  }
+
+  try {
+    // Enumerate available cameras if supported
+    if (select && navigator.mediaDevices.enumerateDevices) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        select.innerHTML = '<option value="">Default Camera</option>' + 
+          videoDevices.map((d, idx) => `
+            <option value="${d.deviceId}" ${posReceiptSelectedDeviceId === d.deviceId ? 'selected' : ''}>
+              ${d.label || `Camera ${idx + 1}`}
+            </option>
+          `).join('');
+      } catch (devErr) {
+        console.warn("Could not enumerate camera devices:", devErr);
+      }
+    }
+
+    const constraints = {
+      video: posReceiptSelectedDeviceId
+        ? { deviceId: { exact: posReceiptSelectedDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    posReceiptCameraStream = stream;
+
+    if (video) {
+      video.srcObject = stream;
+      await video.play();
+      if (msg) msg.textContent = 'Hold receipt in frame and click "Capture Photo"';
+    }
+  } catch (err) {
+    console.warn("Rear camera constraint failed, attempting general camera:", err);
+    try {
+      const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      posReceiptCameraStream = fallbackStream;
+      if (video) {
+        video.srcObject = fallbackStream;
+        await video.play();
+        if (msg) msg.textContent = 'Hold receipt in frame and click "Capture Photo"';
+      }
+    } catch (fbErr) {
+      if (msg) msg.textContent = '❌ Unable to access camera: ' + fbErr.message;
+    }
+  }
+}
+
+function changeReceiptCameraDevice(deviceId) {
+  posReceiptSelectedDeviceId = deviceId || null;
+  openGcashReceiptCamera();
+}
+
+function captureGcashReceiptPhoto() {
+  const video = document.getElementById('pos-receipt-video');
+  const canvas = document.getElementById('pos-receipt-canvas');
+  const previewImg = document.getElementById('pos-gcash-receipt-img');
+  const previewBox = document.getElementById('pos-gcash-preview-box');
+  const badge = document.getElementById('pos-gcash-receipt-status-badge');
+
+  if (!video || !canvas) return;
+
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+
+  if (w === 0 || h === 0) {
+    alert("Camera is warming up. Please wait 1 second and try again.");
+    return;
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+
+  // Compress snapshot as JPEG
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  posGcashReceiptPhoto = dataUrl;
+
+  // Display preview & attached badge
+  if (previewImg) previewImg.src = dataUrl;
+  if (previewBox) previewBox.classList.remove('hidden');
+  if (badge) {
+    badge.textContent = '✅ Photo Attached';
+    badge.style.color = '#15803d';
+    badge.style.background = '#dcfce7';
+  }
+
+  if (typeof playBeepSound === 'function') {
+    playBeepSound();
+  }
+
+  closeGcashReceiptCamera();
+}
+
+function closeGcashReceiptCamera() {
+  const modal = document.getElementById('modal-gcash-receipt-camera');
+  if (modal) modal.classList.add('hidden');
+  closeGcashReceiptCameraStream();
+}
+
+function closeGcashReceiptCameraStream() {
+  if (posReceiptCameraStream) {
+    posReceiptCameraStream.getTracks().forEach(track => {
+      try { track.stop(); } catch (e) {}
+    });
+    posReceiptCameraStream = null;
+  }
+  const video = document.getElementById('pos-receipt-video');
+  if (video) {
+    video.srcObject = null;
+  }
+}
+
+function handleGcashReceiptFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    posGcashReceiptPhoto = dataUrl;
+
+    const previewImg = document.getElementById('pos-gcash-receipt-img');
+    const previewBox = document.getElementById('pos-gcash-preview-box');
+    const badge = document.getElementById('pos-gcash-receipt-status-badge');
+
+    if (previewImg) previewImg.src = dataUrl;
+    if (previewBox) previewBox.classList.remove('hidden');
+    if (badge) {
+      badge.textContent = '✅ Photo Attached';
+      badge.style.color = '#15803d';
+      badge.style.background = '#dcfce7';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeGcashReceiptPhoto() {
+  posGcashReceiptPhoto = null;
+  const previewBox = document.getElementById('pos-gcash-preview-box');
+  const previewImg = document.getElementById('pos-gcash-receipt-img');
+  const badge = document.getElementById('pos-gcash-receipt-status-badge');
+  const fileInput = document.getElementById('pos-gcash-file-input');
+
+  if (previewBox) previewBox.classList.add('hidden');
+  if (previewImg) previewImg.src = '';
+  if (fileInput) fileInput.value = '';
+  if (badge) {
+    badge.textContent = 'No Receipt Photo';
+    badge.style.color = '#64748b';
+    badge.style.background = '#e2e8f0';
+  }
+}
+
 // POS Atomic Sale Checkout
 async function processAdminPosCheckout() {
   if (posCart.length === 0) {
@@ -1193,7 +1370,8 @@ async function processAdminPosCheckout() {
     address: 'In-Store Walk-in POS',
     items: posCart,
     total: grandTotal,
-    gcashRef: posPaymentMethod === 'GCash' ? 'WALK_IN_GCASH' : 'CASH_SALE',
+    gcashRef: posPaymentMethod === 'GCash' ? (posGcashReceiptPhoto ? 'RECEIPT_PHOTO_ATTACHED' : 'WALK_IN_GCASH') : 'CASH_SALE',
+    paymentProof: posPaymentMethod === 'GCash' ? posGcashReceiptPhoto : null,
     paymentMethod: posPaymentMethod,
     status: 'Completed'
   };
@@ -1223,10 +1401,11 @@ async function processAdminPosCheckout() {
       paymentMethod: posPaymentMethod
     });
 
-    // Reset register
+    // Reset register & clear captured receipt photo
     posCart = [];
     if (tenderedInput) tenderedInput.value = '';
     if (customerNameInput) customerNameInput.value = '';
+    removeGcashReceiptPhoto();
     renderAdminPosTicket();
 
     // Re-sync inventory and analytics
