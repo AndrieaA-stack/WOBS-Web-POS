@@ -53,6 +53,7 @@ async function fetchProductsFromDB() {
       ...p,
       cost: parseFloat(p.cost),
       price: parseFloat(p.price),
+      stock: parseInt(p.stock, 10) || 0,
       expiry: p.expiry ? p.expiry.split('T')[0] : '2027-12-31'
     }));
   } catch (err) {
@@ -102,7 +103,7 @@ async function processScannedBarcode(code) {
         msgEl.className = 'scan-msg text-danger';
         msgEl.textContent = '❌ EXPIRED ITEM: ' + found.name + ' cannot be added.';
       }
-    } else if (found.stock <= 0) {
+    } else if (parseInt(found.stock, 10) <= 0) {
       if (msgEl) {
         msgEl.className = 'scan-msg text-danger';
         msgEl.textContent = '❌ OUT OF STOCK: ' + found.name;
@@ -130,9 +131,14 @@ function handleBarcodeScan(e) {
 }
 
 function renderCategoryPills() {
-  var categories = ['All', ...new Set(products.map(p => p.category))];
+  // Only display categories for available in-stock items
+  var inStockProducts = products.filter(p => parseInt(p.stock, 10) > 0);
+  var categories = ['All', ...new Set(inStockProducts.map(p => p.category).filter(Boolean))];
   var container = document.getElementById('category-pills');
   if (container) {
+    if (!categories.includes(selectedCategory)) {
+      selectedCategory = 'All';
+    }
     container.innerHTML = categories.map(cat => 
       `<button type="button" onclick="setCategory('${cat}')" class="pill-btn ${selectedCategory === cat ? 'active' : ''}">${cat}</button>`
     ).join('');
@@ -155,7 +161,9 @@ async function renderPosCatalog() {
 
   if (!catalog) return;
 
+  // Filter out any products that are out of stock (stock <= 0)
   var filtered = products.filter(p => 
+    parseInt(p.stock, 10) > 0 &&
     (selectedCategory === 'All' || p.category === selectedCategory) &&
     (p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)))
   );
@@ -200,6 +208,11 @@ async function renderPosCatalog() {
 function addToCart(id) {
   var prod = products.find(p => p.id === id);
   if (!prod) return;
+
+  if (parseInt(prod.stock, 10) <= 0) {
+    alert('Sorry, this item is currently out of stock.');
+    return;
+  }
 
   var item = cart.find(c => c.id === id);
   if (item) {

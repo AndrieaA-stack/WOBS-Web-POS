@@ -23,7 +23,7 @@
     <div style="display: flex; gap: 10px; align-items: center;">
       <!-- Admin Logout Button -->
       <button onclick="handleAdminLogout()" class="tab-btn" style="background-color: #ef4444; color: #ffffff; border: none; cursor: pointer;">
-         Logout
+        Logout
       </button>
     </div>
   </div>
@@ -40,118 +40,193 @@
 
     <!-- TAB 1: INVENTORY MANAGEMENT -->
     <div id="section-products" class="admin-section">
-      <div class="card mb-3" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h3>Product Catalog</h3>
-          <p class="text-muted" style="font-size:12px;">Manage inventory stock levels, prices, and expiration dates.</p>
+      <!-- Product Catalog Container -->
+      <div class="table-container" style="margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px; font-weight: 700;">Product Catalog</h2>
+            <p style="margin: 0; color: #64748b; font-size: 13px;">Manage inventory stock levels, retail prices, supplier costs, and expiration dates.</p>
+          </div>
+          <button onclick="openProductModal()" class="btn btn-success" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:8px 16px; border-radius:8px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);">
+            <i class="fa-solid fa-plus"></i> Add New Product
+          </button>
         </div>
-        <button onclick="openProductModal()" class="btn btn-success">+ Add New Product</button>
-      </div>
 
-      <div class="card mb-3">
-        <table class="table" style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr style="text-align:left; border-bottom:2px solid #334155; padding-bottom:8px;">
-              <th>ID</th>
-              <th>Barcode</th>
-              <th>Product Name</th>
-              <th>Category</th>
-              <th>Cost</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Expiry Date</th>
-              <th style="text-align:right;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="admin-products-list"></tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">ID</th>
+                <th style="width: 140px;">Barcode</th>
+                <th style="min-width: 220px;">Product Name</th>
+                <th style="width: 150px;">Category</th>
+                <th style="text-align: right; width: 100px;">Cost</th>
+                <th style="text-align: right; width: 100px;">Price</th>
+                <th style="text-align: center; width: 130px;">Stock</th>
+                <th style="width: 130px;">Expiry Date</th>
+                <th style="text-align: center; width: 150px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-products-list"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Admin Pending Requests Card -->
-      <div class="card">
-        <h3>Pending Admin Registration Requests</h3>
-        <table class="table" style="width:100%;">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Requested Username</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="pending-admin-list"></tbody>
-        </table>
+      <div class="table-container">
+        <div style="margin-bottom: 20px;">
+          <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 18px; font-weight: 700;">Pending Admin Registration Requests</h2>
+          <p style="margin: 0; color: #64748b; font-size: 13px;">Review and approve or reject requested admin and staff access accounts.</p>
+        </div>
+        <div class="table-responsive">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th style="text-align: center; width: 38%;">Full Name</th>
+                <th style="text-align: center; width: 34%;">Requested Username</th>
+                <th style="text-align: center; width: 28%;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="pending-admin-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: TRANSACTIONS & PROOF SCREENSHOTS -->
+    <div id="section-txns" class="admin-section hidden">
+      <div class="table-container">
+        <div style="margin-bottom: 20px;">
+          <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px;">Order Transactions Log</h2>
+          <p style="margin: 0; color: #64748b; font-size: 13px;">View completed customer orders, delivery addresses, GCash payment screenshots, and manage order statuses.</p>
+        </div>
+
+        <div class="table-responsive">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th style="width: 110px;">Txn ID</th>
+                <th style="width: 150px;">Date / Time</th>
+                <th style="width: 150px;">Customer Name</th>
+                <th style="min-width: 220px;">Delivery Address</th>
+                <th style="text-align: right; width: 100px;">Total Paid</th>
+                <th style="text-align: center; width: 140px;">Payment Screenshot</th>
+                <th style="min-width: 240px;">Items Ordered</th>
+                <th style="text-align: center; width: 140px;">Order Status</th>
+                <th style="text-align: center; width: 150px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-txns-list">
+              <!-- Dynamically populated via Admin.js -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     
-    <!-- TRANSACTIONS & ORDERS TABLE -->
-<div class="table-container">
-  <div class="table-header-box">
-    <h2>Transaction Records & Order Fulfillment</h2>
-    <p>Manage customer orders, verify payment screenshots, and update delivery statuses in real-time.</p>
-  </div>
-
-  <div class="table-responsive">
-    <table class="styled-table">
-      <thead>
-        <tr>
-          <th>Txn ID</th>
-          <th>Date / Time</th>
-          <th>Customer Name</th>
-          <th>Delivery Address</th>
-          <th class="text-right">Total Paid</th>
-          <th class="text-center">Payment Screenshot</th>
-          <th>Items Ordered</th>
-          <th class="text-center">Order Status</th>
-        </tr>
-      </thead>
-      <tbody id="admin-txns-list">
-        <!-- Rendered dynamically by Admin.js -->
-        <tr>
-          <td colspan="8" class="text-center text-muted" style="padding: 30px;">
-            Loading transactions from database...
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
     <!-- TAB 3: SALES & PRODUCT ANALYTICS -->
     <div id="section-analytics" class="admin-section hidden">
-      <div class="card mb-3" style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; color:#fff; padding:20px; border-radius:12px;">
-        <div>
-          <span style="font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#94a3b8;">Monthly Performance</span>
-          <h2 style="margin-top:5px;">Total Monthly Sales</h2>
+      <!-- Main Overview Card -->
+      <div class="card mb-3" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; padding: 22px; border-radius: 14px; border: 1px solid #334155; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        
+        <!-- Header row with title & timeframe choices -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span id="sales-period-label" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">Monthly Performance</span>
+              <span id="sales-date-range-badge" style="font-size: 12px; color: #94a3b8; font-weight: 500;"></span>
+            </div>
+            <h2 id="sales-title-label" style="margin: 8px 0 0 0; font-size: 22px; font-weight: 700; color: #f8fafc;">Total Monthly Sales</h2>
+          </div>
+
+          <!-- Timeframe Choice Controls -->
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <!-- Segmented Pill Buttons -->
+            <div class="analytics-pill-container">
+              <button type="button" class="analytics-pill-btn" data-timeframe="weekly" onclick="changeAnalyticsTimeframe('weekly')">Weekly</button>
+              <button type="button" class="analytics-pill-btn active" data-timeframe="monthly" onclick="changeAnalyticsTimeframe('monthly')">Monthly</button>
+              <button type="button" class="analytics-pill-btn" data-timeframe="yearly" onclick="changeAnalyticsTimeframe('yearly')">Yearly</button>
+            </div>
+
+            <!-- Native Dropdown Selector -->
+            <select id="sales-timeframe-select" onchange="changeAnalyticsTimeframe(this.value)" style="font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; background: #0f172a; color: #38bdf8; border: 1px solid #334155; cursor: pointer; outline: none;">
+              <option value="weekly">Weekly (Last 7 Days)</option>
+              <option value="monthly" selected>Monthly (This Month)</option>
+              <option value="yearly">Yearly (This Year)</option>
+            </select>
+
+            <!-- Year Filter Selector -->
+            <select id="analytics-year-select" onchange="renderAnalytics()" style="font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; background: #0f172a; color: #38bdf8; border: 1px solid #334155; cursor: pointer; outline: none;">
+              <option value="2026" selected>Year 2026</option>
+              <option value="2027">Year 2027</option>
+              <option value="2025">Year 2025</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <h1 id="monthly-sales-amount" style="color:#4ade80; font-size:32px;">₱0.00</h1>
+
+        <!-- 3-KPI Overview Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <!-- Card 1: Total Revenue -->
+          <div style="background: rgba(15, 23, 42, 0.65); padding: 16px 20px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-coins" style="color: #4ade80; margin-right: 6px;"></i> Total Revenue
+            </div>
+            <h1 id="monthly-sales-amount" style="color: #4ade80; font-size: 30px; font-weight: 700; margin: 0;">₱0.00</h1>
+          </div>
+
+          <!-- Card 2: Completed Orders -->
+          <div style="background: rgba(15, 23, 42, 0.65); padding: 16px 20px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-receipt" style="color: #38bdf8; margin-right: 6px;"></i> Completed Orders
+            </div>
+            <h2 id="analytics-orders-count" style="color: #38bdf8; font-size: 30px; font-weight: 700; margin: 0;">0</h2>
+          </div>
+
+          <!-- Card 3: Items Sold -->
+          <div style="background: rgba(15, 23, 42, 0.65); padding: 16px 20px; border-radius: 10px; border: 1px solid #334155;">
+            <div style="font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-box-archive" style="color: #fbbf24; margin-right: 6px;"></i> Items Sold
+            </div>
+            <h2 id="analytics-units-count" style="color: #fbbf24; font-size: 30px; font-weight: 700; margin: 0;">0 units</h2>
+          </div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-        <!-- Best Sellers -->
+      <!-- Tables: Best Sellers on Top, Least Sellers at the Bottom -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Best Sellers (On Top) -->
         <div class="card">
-          <h3 style="color:#4ade80; margin-bottom:10px;"> Top Best Selling Products</h3>
-          <table class="table" style="width:100%; border-collapse:collapse;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px;">
+            <h3 style="color:#4ade80; margin:0; font-size:16px;">
+              <i class="fa-solid fa-award" style="margin-right: 6px;"></i> Top Best Selling Products
+            </h3>
+            <span id="best-sellers-badge" class="badge" style="background:#065f46; color:#a7f3d0; font-size:11px; padding:3px 8px;">Monthly</span>
+          </div>
+          <table class="analytics-table" style="width:100%; min-width:unset; border-collapse:collapse;">
             <thead>
               <tr style="text-align:left; border-bottom:2px solid #334155;">
-                <th>Product Name</th>
-                <th style="text-align:right;">Units Sold</th>
+                <th style="padding: 10px 12px;">Product Name</th>
+                <th style="text-align:right; padding: 10px 12px;">Units Sold</th>
               </tr>
             </thead>
             <tbody id="best-selling-list"></tbody>
           </table>
         </div>
 
-        <!-- Least Sellers -->
+        <!-- Least Sellers (At the Bottom) -->
         <div class="card">
-          <h3 style="color:#f87171; margin-bottom:10px;"> Least Selling Products</h3>
-          <table class="table" style="width:100%; border-collapse:collapse;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px;">
+            <h3 style="color:#f87171; margin:0; font-size:16px;">
+              <i class="fa-solid fa-arrow-down-short-wide" style="margin-right: 6px;"></i> Least Selling Products
+            </h3>
+            <span id="least-sellers-badge" class="badge" style="background:#7f1d1d; color:#fecaca; font-size:11px; padding:3px 8px;">Monthly</span>
+          </div>
+          <table class="analytics-table" style="width:100%; min-width:unset; border-collapse:collapse;">
             <thead>
               <tr style="text-align:left; border-bottom:2px solid #334155;">
-                <th>Product Name</th>
-                <th style="text-align:right;">Units Sold</th>
+                <th style="padding: 10px 12px;">Product Name</th>
+                <th style="text-align:right; padding: 10px 12px;">Units Sold</th>
               </tr>
             </thead>
             <tbody id="least-selling-list"></tbody>

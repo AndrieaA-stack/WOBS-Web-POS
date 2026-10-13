@@ -31,13 +31,13 @@ function switchAdminTab(tabName) {
   const secTxns = document.getElementById('section-txns');
   const secAnalytics = document.getElementById('section-analytics');
 
-  btnProducts.className = tabName === 'products' ? "btn btn-primary" : "btn btn-secondary";
-  btnTxns.className = tabName === 'txns' ? "btn btn-primary" : "btn btn-secondary";
-  btnAnalytics.className = tabName === 'analytics' ? "btn btn-primary" : "btn btn-secondary";
+  if (btnProducts) btnProducts.className = tabName === 'products' ? "btn btn-primary" : "btn btn-secondary";
+  if (btnTxns) btnTxns.className = tabName === 'txns' ? "btn btn-primary" : "btn btn-secondary";
+  if (btnAnalytics) btnAnalytics.className = tabName === 'analytics' ? "btn btn-primary" : "btn btn-secondary";
 
-  secProducts.classList.toggle('hidden', tabName !== 'products');
-  secTxns.classList.toggle('hidden', tabName !== 'txns');
-  secAnalytics.classList.toggle('hidden', tabName !== 'analytics');
+  if (secProducts) secProducts.classList.toggle('hidden', tabName !== 'products');
+  if (secTxns) secTxns.classList.toggle('hidden', tabName !== 'txns');
+  if (secAnalytics) secAnalytics.classList.toggle('hidden', tabName !== 'analytics');
 
   if (tabName === 'products') {
     fetchProducts();
@@ -62,25 +62,82 @@ function renderProductsTable() {
   if (!tbody) return;
 
   if (productsData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">No products found.</td></tr>';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center; padding:40px 20px; color:#64748b;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <i class="fa-solid fa-box-open" style="font-size:32px; color:#cbd5e1;"></i>
+            <strong style="font-size:14px; color:#334155;">No Products in Catalog</strong>
+            <span style="font-size:12px; color:#94a3b8;">Click "+ Add New Product" to add your first item.</span>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
   tbody.innerHTML = productsData.map(p => {
     const expiryStr = p.expiry ? p.expiry.split('T')[0] : 'N/A';
+    const isExpired = p.expiry && new Date(p.expiry) < new Date();
+    const stockNum = parseInt(p.stock || 0, 10);
+
+    // Stock Badge
+    let stockBadge = '';
+    if (stockNum <= 0) {
+      stockBadge = `<span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; font-weight:700; padding:4px 8px; border-radius:12px;"><i class="fa-solid fa-circle-xmark" style="margin-right:4px;"></i>Out of Stock</span>`;
+    } else if (stockNum < 10) {
+      stockBadge = `<span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700; padding:4px 8px; border-radius:12px;"><i class="fa-solid fa-circle-exclamation" style="margin-right:4px;"></i>Low (${stockNum})</span>`;
+    } else {
+      stockBadge = `<span class="badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-weight:700; padding:4px 8px; border-radius:12px;"><i class="fa-solid fa-circle-check" style="margin-right:4px;"></i>${stockNum} in stock</span>`;
+    }
+
+    // Expiry Display
+    const expiryBadge = isExpired
+      ? `<span class="badge" style="background:#fee2e2; color:#dc2626; font-size:11px; padding:3px 6px; border-radius:4px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>${expiryStr}</span>`
+      : `<span style="font-size:12px; color:#475569;"><i class="fa-regular fa-calendar" style="color:#94a3b8; margin-right:4px;"></i>${expiryStr}</span>`;
+
+    // Clean display ID
+    const cleanId = String(p.id).startsWith('p_') && String(p.id).length > 8 
+      ? `p#${String(p.id).slice(-4)}` 
+      : p.id;
+
     return `
-      <tr style="border-bottom: 1px solid #334155;">
-        <td><small>${p.id}</small></td>
-        <td><code>${p.barcode}</code></td>
-        <td><strong>${p.name}</strong></td>
-        <td><span class="card-tag">${p.category}</span></td>
-        <td>₱${parseFloat(p.cost).toFixed(2)}</td>
-        <td><strong>₱${parseFloat(p.price).toFixed(2)}</strong></td>
-        <td><span style="color: ${p.stock < 10 ? '#f87171' : '#4ade80'}">${p.stock}</span></td>
-        <td><small>${expiryStr}</small></td>
-        <td style="text-align:right;">
-        <button onclick="editProduct('${p.id}')" class="btn btn-sm" style="background-color: #0284c7; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Edit</button>
-        <button onclick="deleteProduct('${p.id}')" class="btn btn-sm" style="background-color: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Delete</button>
+      <tr>
+        <td>
+          <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; font-family:monospace; font-size:11px; padding:3px 6px; border-radius:4px;" title="${p.id}">${cleanId}</span>
+        </td>
+        <td>
+          <span style="font-family:monospace; font-size:12px; color:#334155; font-weight:600;">
+            <i class="fa-solid fa-barcode" style="color:#94a3b8; margin-right:4px;"></i>${p.barcode || 'N/A'}
+          </span>
+        </td>
+        <td>
+          <strong style="color:#0f172a; font-size:13px;">${p.name}</strong>
+        </td>
+        <td>
+          <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:600; font-size:11px; padding:3px 8px; border-radius:6px;">${p.category || 'General'}</span>
+        </td>
+        <td style="text-align:right; color:#64748b; font-size:13px;">
+          ₱${parseFloat(p.cost || 0).toFixed(2)}
+        </td>
+        <td style="text-align:right; font-weight:700; color:#0f172a; font-size:13px;">
+          ₱${parseFloat(p.price || 0).toFixed(2)}
+        </td>
+        <td style="text-align:center;">
+          ${stockBadge}
+        </td>
+        <td>
+          ${expiryBadge}
+        </td>
+        <td style="text-align:center;">
+          <div class="action-btn-group">
+            <button onclick="editProduct('${p.id}')" class="btn-action-edit" title="Edit Product">
+              <i class="fa-solid fa-pen-to-square"></i> Edit
+            </button>
+            <button onclick="deleteProduct('${p.id}')" class="btn-action-delete" title="Delete Product">
+              <i class="fa-solid fa-trash"></i> Delete
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -235,12 +292,13 @@ async function fetchTransactions() {
   }
 }
 
+// 1. Render Transactions Table with Accept & Decline Action Buttons
 function renderTransactionsTable() {
   const tbody = document.getElementById('admin-txns-list');
   if (!tbody) return;
 
   if (transactionsData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No transaction records found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">No transactions recorded.</td></tr>';
     return;
   }
 
@@ -252,43 +310,62 @@ function renderTransactionsTable() {
     const custName = txn.customer_name || 'Guest Customer';
     const currentStatus = txn.status || 'Pending';
 
+    // Side-by-side Action Buttons
+    let actionButtons = '';
+    if (currentStatus === 'Pending') {
+      actionButtons = `
+        <div class="action-btn-group">
+          <button onclick="updateOrderStatus('${txn.id}', 'Accepted')" class="btn-action-accept">Accept</button>
+          <button onclick="updateOrderStatus('${txn.id}', 'Declined')" class="btn-action-decline">Decline</button>
+        </div>
+      `;
+    } else if (['Accepted', 'Preparing Order', 'Out for Delivery', 'Delivered'].includes(currentStatus)) {
+      actionButtons = `<span style="color: #16a34a; font-weight: 700; font-size: 12px;">✅ Accepted</span>`;
+    } else if (currentStatus === 'Declined') {
+      actionButtons = `<span style="color: #dc2626; font-weight: 700; font-size: 12px;">❌ Declined</span>`;
+    }
+
     return `
       <tr>
-        <td><strong style="color: #38bdf8;">#${txn.id}</strong></td>
-        <td><small class="text-muted">${formattedDate}</small></td>
+        <td><strong style="color: #0284c7;">#${txn.id}</strong></td>
+        <td><small>${formattedDate}</small></td>
         <td><strong>${custName}</strong></td>
-        <td><small style="color: #cbd5e1;">${txn.address}</small></td>
-        <td class="text-right"><strong style="color: #4ade80;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
-        <td class="text-center">
+        <td><small style="color: #334155;">${txn.address}</small></td>
+        <td style="text-align: right;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
+        <td style="text-align: center;">
           ${hasProof 
-            ? `<button onclick="viewProofImage('${txn.id}')" class="btn-proof-view">🖼️ View Screenshot</button>` 
-            : `<span class="text-muted">No Image</span>`
+            ? `<button onclick="viewProofImage('${txn.id}')" style="background: #0f172a; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;">View Screenshot</button>` 
+            : `<span style="color: #94a3b8; font-size: 12px;">No Image</span>`
           }
         </td>
-        <td><small style="color: #94a3b8;">${itemListStr}</small></td>
-        <td class="text-center">
-          <select onchange="updateOrderStatus('${txn.id}', this.value)" class="status-select">
+        <td><small style="color: #334155;">${itemListStr}</small></td>
+        <td style="text-align: center;">
+          <select onchange="updateOrderStatus('${txn.id}', this.value)" style="font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; background: #0f172a; color: #fff; border: 1px solid #334155; cursor: pointer; outline: none;">
             <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+            <option value="Accepted" ${currentStatus === 'Accepted' ? 'selected' : ''}>Accepted</option>
             <option value="Preparing Order" ${currentStatus === 'Preparing Order' ? 'selected' : ''}>Preparing Order</option>
             <option value="Out for Delivery" ${currentStatus === 'Out for Delivery' ? 'selected' : ''}>Out for Delivery</option>
             <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+            <option value="Declined" ${currentStatus === 'Declined' ? 'selected' : ''}>Declined</option>
           </select>
         </td>
+        <td style="text-align: center;">${actionButtons}</td>
       </tr>
     `;
   }).join('');
 }
 
+// 2. Update Order Status and Refresh Data
 async function updateOrderStatus(txnId, newStatus) {
   const cleanId = String(txnId).replace('WOBS-', '').replace('#', '');
   
-  // 1. Update in-memory array
+  // Update local state
   const txn = transactionsData.find(t => String(t.id).replace('WOBS-', '').replace('#', '') === cleanId);
   if (txn) {
     txn.status = newStatus;
   }
 
-  // 2. Persist in localStorage for cross-tab sync with Customer.html
+  // Persist in localStorage for cross-tab sync
   let localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
   const localIndex = localTxns.findIndex(l => String(l.id).replace('WOBS-', '').replace('#', '') === cleanId);
   
@@ -299,7 +376,7 @@ async function updateOrderStatus(txnId, newStatus) {
   }
   localStorage.setItem('wobs_transactions', JSON.stringify(localTxns));
 
-  // 3. Sync to Backend Database API
+  // Sync with backend API
   try {
     await fetch(`${API_URL}/transactions/${cleanId}/status`, {
       method: 'PUT',
@@ -308,6 +385,12 @@ async function updateOrderStatus(txnId, newStatus) {
     });
   } catch (err) {
     console.warn("Server status sync notice:", err);
+  }
+
+  // Refresh tables and analytics dynamically
+  renderTransactionsTable();
+  if (typeof renderAnalytics === 'function') {
+    renderAnalytics();
   }
 }
 
@@ -335,17 +418,44 @@ async function fetchPendingAdmins() {
     if (!tbody) return;
 
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:10px; color:#94a3b8;">No pending account approvals.</td></tr>';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align:center; padding:35px 20px; color:#64748b;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <i class="fa-solid fa-user-shield" style="font-size:28px; color:#cbd5e1;"></i>
+              <strong style="font-size:14px; color:#334155;">No Pending Account Approvals</strong>
+              <span style="font-size:12px; color:#94a3b8;">All admin and staff registration requests have been processed.</span>
+            </div>
+          </td>
+        </tr>
+      `;
       return;
     }
 
     tbody.innerHTML = list.map(a => `
-      <tr style="border-bottom: 1px solid #334155;">
-        <td><strong>${a.fullname}</strong></td>
-        <td><code>${a.username}</code></td>
-        <td>
-        <button onclick="approveAdmin(${a.id}, 'APPROVED')" class="btn btn-sm" style="background-color: #16a34a; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">Approve</button>
-        <button onclick="approveAdmin(${a.id}, 'REJECTED')" class="btn btn-sm" style="background-color: #dc2626; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">Reject</button>
+      <tr>
+        <td style="text-align: center;">
+          <div style="display: inline-flex; align-items: center; gap: 10px;">
+            <span style="width: 32px; height: 32px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">
+              ${(a.fullname || 'A')[0].toUpperCase()}
+            </span>
+            <strong style="color: #0f172a; font-size: 13px;">${a.fullname}</strong>
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <span class="badge" style="background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; font-family: monospace; padding: 5px 12px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center;">
+            <i class="fa-solid fa-user" style="color: #94a3b8; margin-right: 6px;"></i>${a.username}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          <div class="action-btn-group" style="justify-content: center;">
+            <button onclick="approveAdmin(${a.id}, 'APPROVED')" class="btn-action-accept" title="Approve Request">
+              <i class="fa-solid fa-check"></i> Approve
+            </button>
+            <button onclick="approveAdmin(${a.id}, 'REJECTED')" class="btn-action-decline" title="Reject Request">
+              <i class="fa-solid fa-xmark"></i> Reject
+            </button>
+          </div>
         </td>
       </tr>
     `).join('');
@@ -369,69 +479,220 @@ async function approveAdmin(id, action) {
   }
 }
 
-// Sales Analytics Renderer
+// Timeframe Switcher & State
+let selectedAnalyticsTimeframe = 'monthly';
+
+function changeAnalyticsTimeframe(timeframe) {
+  selectedAnalyticsTimeframe = timeframe;
+
+  // Sync dropdown
+  const selectEl = document.getElementById('sales-timeframe-select');
+  if (selectEl && selectEl.value !== timeframe) {
+    selectEl.value = timeframe;
+  }
+
+  // Sync button pills
+  document.querySelectorAll('.analytics-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
+  });
+
+  renderAnalytics();
+}
+
+// 3. Calculate Sales & Products Sold for Chosen Timeframe (Weekly, Monthly, Yearly)
 async function renderAnalytics() {
   await fetchProducts();
   await fetchTransactions();
 
+  // Read current timeframe from select or global variable
+  const selectEl = document.getElementById('sales-timeframe-select');
+  const timeframe = selectEl ? selectEl.value : selectedAnalyticsTimeframe;
+  selectedAnalyticsTimeframe = timeframe;
+
+  // Sync pill buttons
+  document.querySelectorAll('.analytics-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
+  });
+
+  // Read selected year (defaults strictly to 2026 or chosen year from the Year filter)
+  const yearSelect = document.getElementById('analytics-year-select');
+  const currentYear = yearSelect ? parseInt(yearSelect.value, 10) : 2026;
+
   const now = new Date();
   const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
 
-  let monthlyTotal = 0;
+  // Reference date anchored to the active year (2026 by default)
+  const refDate = new Date(currentYear, currentMonth, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  let filterFn;
+  let periodLabelText = "";
+  let titleLabelText = "";
+  let rangeLabelText = "";
+  let badgeText = "";
+
+  if (timeframe === 'weekly') {
+    // Last 7 days anchored to refDate in currentYear
+    const sevenDaysAgo = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - 6, 0, 0, 0, 0);
+    filterFn = (txnDate) => txnDate >= sevenDaysAgo && txnDate <= refDate;
+
+    periodLabelText = "Weekly Performance";
+    titleLabelText = "Total Weekly Sales";
+    const startFormatted = sevenDaysAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endFormatted = refDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    rangeLabelText = `(${startFormatted} – ${endFormatted})`;
+    badgeText = "Last 7 Days";
+  } else if (timeframe === 'yearly') {
+    // Current Calendar Year: 2026 by default
+    filterFn = (txnDate) => txnDate.getFullYear() === currentYear;
+
+    periodLabelText = "Yearly Performance";
+    titleLabelText = `Total Yearly Sales (${currentYear})`;
+    rangeLabelText = `(Jan 1 – Dec 31, ${currentYear})`;
+    badgeText = `Year ${currentYear}`;
+  } else {
+    // Default: 'monthly' (Current Calendar Month in 2026 by default)
+    filterFn = (txnDate) => txnDate.getFullYear() === currentYear && txnDate.getMonth() === currentMonth;
+
+    periodLabelText = "Monthly Performance";
+    titleLabelText = `Total Monthly Sales (${monthNames[currentMonth]} ${currentYear})`;
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    rangeLabelText = `(${monthNames[currentMonth]} 1 – ${lastDayOfMonth}, ${currentYear})`;
+    badgeText = `${monthNames[currentMonth]} ${currentYear}`;
+  }
+
+  // Update Dynamic Header Text & Badges
+  const periodLabel = document.getElementById('sales-period-label');
+  if (periodLabel) periodLabel.textContent = periodLabelText;
+
+  const titleLabel = document.getElementById('sales-title-label');
+  if (titleLabel) titleLabel.textContent = titleLabelText;
+
+  const rangeBadge = document.getElementById('sales-date-range-badge');
+  if (rangeBadge) rangeBadge.textContent = rangeLabelText;
+
+  const bestBadge = document.getElementById('best-sellers-badge');
+  if (bestBadge) bestBadge.textContent = badgeText;
+
+  const leastBadge = document.getElementById('least-sellers-badge');
+  if (leastBadge) leastBadge.textContent = badgeText;
+
+  let totalSales = 0;
+  let orderCount = 0;
+  let totalUnits = 0;
   const productSalesCount = {};
 
   productsData.forEach(p => {
     productSalesCount[p.name] = 0;
   });
 
-  transactionsData.forEach(txn => {
-    const txnDate = new Date(txn.date_created);
-    
-    if (txnDate.getMonth() === currentMonth && txnDate.getFullYear() === currentYear) {
-      monthlyTotal += parseFloat(txn.total);
-    }
+  // Valid statuses that count as actual sales revenue
+  const VALID_SALES_STATUSES = ['ACCEPTED', 'PREPARING ORDER', 'OUT FOR DELIVERY', 'DELIVERED', 'COMPLETED'];
 
-    const items = typeof txn.items === 'string' ? JSON.parse(txn.items) : txn.items;
-    items.forEach(i => {
-      productSalesCount[i.name] = (productSalesCount[i.name] || 0) + i.qty;
-    });
+  transactionsData.forEach(txn => {
+    const txnDate = txn.date_created ? new Date(txn.date_created) : null;
+    const statusUpper = String(txn.status || 'Pending').trim().toUpperCase();
+
+    // Accumulate sales and items exclusively for fulfilled/accepted orders in chosen period
+    if (VALID_SALES_STATUSES.includes(statusUpper) && txnDate && !isNaN(txnDate.getTime())) {
+      if (filterFn(txnDate)) {
+        totalSales += parseFloat(txn.total || 0);
+        orderCount++;
+
+        let items = [];
+        try {
+          items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
+        } catch (e) {
+          console.warn("Error parsing items for transaction:", txn.id, e);
+        }
+
+        items.forEach(i => {
+          const qty = parseInt(i.qty || 1, 10);
+          productSalesCount[i.name] = (productSalesCount[i.name] || 0) + qty;
+          totalUnits += qty;
+        });
+      }
+    }
   });
 
-  document.getElementById('monthly-sales-amount').textContent = '₱' + monthlyTotal.toFixed(2);
+  // Display Total Revenue
+  const salesEl = document.getElementById('monthly-sales-amount');
+  if (salesEl) {
+    salesEl.textContent = '₱' + totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
+  // Display Orders Count
+  const ordersEl = document.getElementById('analytics-orders-count');
+  if (ordersEl) {
+    ordersEl.textContent = orderCount;
+  }
+
+  // Display Units Count
+  const unitsEl = document.getElementById('analytics-units-count');
+  if (unitsEl) {
+    unitsEl.textContent = `${totalUnits} ${totalUnits === 1 ? 'unit' : 'units'}`;
+  }
+
+  // Rank products by units sold
   const sortedProducts = Object.keys(productSalesCount).map(name => ({
     name: name,
     qty: productSalesCount[name]
   })).sort((a, b) => b.qty - a.qty);
 
   // Top 5 Best Sellers
-  const bestSellers = sortedProducts.slice(0, 5);
-  document.getElementById('best-selling-list').innerHTML = bestSellers.map(p => `
-    <tr style="border-bottom: 1px solid #334155;">
-      <td><strong>${p.name}</strong></td>
-      <td style="text-align:right; color:#4ade80;"><strong>${p.qty} sold</strong></td>
-    </tr>
-  `).join('') || '<tr><td colspan="2">No sales recorded</td></tr>';
+  const bestSellersList = document.getElementById('best-selling-list');
+  if (bestSellersList) {
+    const productsWithSales = sortedProducts.filter(p => p.qty > 0);
+    if (productsWithSales.length === 0) {
+      bestSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#94a3b8;">No sales recorded for this timeframe</td></tr>';
+    } else {
+      bestSellersList.innerHTML = productsWithSales.slice(0, 5).map((p, idx) => `
+        <tr style="border-bottom: 1px solid #334155;">
+          <td style="padding: 12px 14px;">
+            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#0f172a; color:#4ade80; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
+            <strong>${p.name}</strong>
+          </td>
+          <td style="text-align:right; padding: 12px 14px; color:#4ade80;"><strong>${p.qty} sold</strong></td>
+        </tr>
+      `).join('');
+    }
+  }
 
   // Top 5 Least Sellers
-  const leastSellers = [...sortedProducts].reverse().slice(0, 5);
-  document.getElementById('least-selling-list').innerHTML = leastSellers.map(p => `
-    <tr style="border-bottom: 1px solid #334155;">
-      <td><strong>${p.name}</strong></td>
-      <td style="text-align:right; color:#f87171;"><strong>${p.qty} sold</strong></td>
-    </tr>
-  `).join('') || '<tr><td colspan="2">No sales recorded</td></tr>';
+  const leastSellersList = document.getElementById('least-selling-list');
+  if (leastSellersList) {
+    if (sortedProducts.length === 0) {
+      leastSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#94a3b8;">No products found</td></tr>';
+    } else {
+      const leastProducts = [...sortedProducts].reverse().slice(0, 5);
+      leastSellersList.innerHTML = leastProducts.map((p, idx) => `
+        <tr style="border-bottom: 1px solid #334155;">
+          <td style="padding: 12px 14px;">
+            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#0f172a; color:#f87171; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
+            <strong>${p.name}</strong>
+          </td>
+          <td style="text-align:right; padding: 12px 14px; color:#f87171;"><strong>${p.qty} sold</strong></td>
+        </tr>
+      `).join('');
+    }
+  }
 }
 
 function handleAdminLogout() {
+
   if (confirm("Are you sure you want to logout from Admin Access?")) {
-    // Clear session-based authentication storage
-    sessionStorage.removeItem('wobs_admin_authenticated');
-    sessionStorage.removeItem('wobs_admin_username');
     
+    sessionStorage.removeItem('wobs_admin_authenticated');
+   
+    sessionStorage.removeItem('wobs_admin_username');
+        
     // Redirect to Welcome landing page
     window.location.href = "Welcomepage.html";
+  
   }
 }
 
