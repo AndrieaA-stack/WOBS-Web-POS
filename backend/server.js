@@ -42,12 +42,93 @@ pool.on('error', (err) => {
   console.error('Unexpected pool error on idle client:', err);
 });
 
+// Automatic Database Schema Migration & Verification
+async function initDatabaseSchema() {
+  try {
+    console.log("🔄 Ensuring database schema and tables are initialized...");
+
+    // 1. Ensure products table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id VARCHAR(100) PRIMARY KEY,
+        barcode VARCHAR(100),
+        name VARCHAR(255) NOT NULL,
+        category VARCHAR(100),
+        cost NUMERIC(10, 2) NOT NULL,
+        price NUMERIC(10, 2) NOT NULL,
+        stock INTEGER NOT NULL,
+        expiry DATE,
+        image TEXT,
+        image_url TEXT,
+        date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Ensure transactions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(100) PRIMARY KEY,
+        customer_id VARCHAR(100),
+        customer_username VARCHAR(100),
+        customer_name VARCHAR(150),
+        address TEXT,
+        gcash_ref VARCHAR(100),
+        payment_proof TEXT,
+        total NUMERIC(10, 2) NOT NULL,
+        items JSONB NOT NULL,
+        status VARCHAR(50) DEFAULT 'Pending',
+        payment_method VARCHAR(50) DEFAULT 'GCash',
+        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. Ensure transactions columns if table already existed without them
+    await pool.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100);
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_username VARCHAR(100);
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'GCash';
+    `);
+
+    // 4. Ensure customers table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id VARCHAR(100) PRIMARY KEY,
+        fullname VARCHAR(150) NOT NULL,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        city VARCHAR(100),
+        barangay VARCHAR(100),
+        street VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 5. Ensure admin_accounts table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_accounts (
+        id SERIAL PRIMARY KEY,
+        fullname VARCHAR(150) NOT NULL,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    console.log("✅ Database schema verified & tables initialized successfully!");
+  } catch (err) {
+    console.error("⚠️ Database schema initialization note:", err.message);
+  }
+}
+
 // Non-blocking database connection check
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('❌ Database connection error:', err.message);
   } else {
     console.log(`✅ Connected to PostgreSQL database (${isProduction ? 'Production/Render' : 'Local'})`);
+    initDatabaseSchema();
   }
 });
 

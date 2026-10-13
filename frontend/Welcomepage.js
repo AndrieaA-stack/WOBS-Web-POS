@@ -1,12 +1,18 @@
 // Replace with your exact Render Web Service URL
 const RENDER_BACKEND_URL = "https://wobs-web-pos.onrender.com"; 
 
-const API_URL = (
+const isLocalhost = (
   window.location.hostname === "localhost" || 
   window.location.hostname === "127.0.0.1" || 
+  window.location.hostname.startsWith("192.168.") ||
+  window.location.hostname.startsWith("10.") ||
+  window.location.hostname.startsWith("172.") ||
+  window.location.hostname.endsWith(".local") ||
   window.location.protocol === "file:"
-) 
-  ? "http://localhost:5000/api" 
+);
+
+const API_URL = isLocalhost
+  ? `http://${(window.location.hostname && !window.location.hostname.includes('file')) ? window.location.hostname : 'localhost'}:5000/api` 
   : `${RENDER_BACKEND_URL}/api`;
 
 function openAdminAuthModal() {
