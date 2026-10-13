@@ -16,11 +16,11 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
 app.use(cors());
 
-// High payload limits for base64 images
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Middleware configuration (increase limit to 10mb for Base64 product photos & payment proof screenshots)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Dynamic Database Connection (Local .env vs Render Production)
+// Dynamic Database Connection Pool (Local vs. Render Production)
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.DATABASE_URL;
 
 const pool = new Pool(
@@ -42,7 +42,7 @@ pool.on('error', (err) => {
   console.error('Unexpected pool error on idle client:', err);
 });
 
-// Non-blocking connection check
+// Non-blocking database connection check
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('❌ Database connection error:', err.message);
@@ -76,12 +76,12 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// POST: Add or Edit product entry
+// POST: Add or Edit product entry (UPSERT on conflict)
 app.post('/api/products', async (req, res) => {
   const { id, barcode, name, category, cost, price, stock, expiry, image } = req.body;
 
-  const sanitizedExpiry = (expiry && expiry.trim() !== '') ? expiry : null;
-  const sanitizedImage = (image && image.trim() !== '' && image !== 'null') ? image : null;
+  const formattedExpiry = (expiry && String(expiry).trim() !== '' && expiry !== 'null') ? expiry : null;
+  const formattedImage = (image && String(image).trim() !== '' && image !== 'null') ? image : null;
 
   try {
     const query = `
@@ -95,33 +95,34 @@ app.post('/api/products', async (req, res) => {
         price = EXCLUDED.price,
         stock = EXCLUDED.stock,
         expiry = EXCLUDED.expiry,
-        image = EXCLUDED.image
+        image = EXCLUDED.image;
     `;
 
     await pool.query(query, [
-      id, 
-      barcode, 
-      name, 
-      category, 
-      parseFloat(cost) || 0, 
-      parseFloat(price) || 0, 
-      parseInt(stock) || 0, 
-      sanitizedExpiry, 
-      sanitizedImage
+      id,
+      barcode,
+      name,
+      category,
+      parseFloat(cost) || 0,
+      parseFloat(price) || 0,
+      parseInt(stock) || 0,
+      formattedExpiry,
+      formattedImage
     ]);
 
-    res.json({ message: 'Product saved successfully' });
+    res.json({ success: true, message: 'Product saved to database successfully' });
   } catch (err) {
     console.error("❌ POSTGRESQL ERROR:", err.message);
-    res.status(500).json({ error: 'Failed to save product: ' + err.message });
+    res.status(500).json({ success: false, error: 'Failed to save product: ' + err.message });
   }
 });
 
 // DELETE: Remove product from database
 app.delete('/api/products/:id', async (req, res) => {
+  const { id } = req.params;
   try {
-    await pool.query('DELETE FROM products WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Product deleted successfully' });
+    await pool.query('DELETE FROM products WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Product deleted successfully' });
   } catch (err) {
     console.error("Error deleting product:", err);
     res.status(500).json({ error: 'Failed to delete product: ' + err.message });
@@ -146,10 +147,10 @@ app.post('/api/checkout', async (req, res) => {
     await client.query(txnQuery, [
       id,
       customerName || 'Guest Customer',
-      address, 
-      gcashRef || 'SCREENSHOT_ATTACHED', 
-      paymentProof || null, 
-      total, 
+      address,
+      gcashRef || 'SCREENSHOT_ATTACHED',
+      paymentProof || null,
+      total,
       JSON.stringify(items),
       'Pending'
     ]);
@@ -217,7 +218,7 @@ app.put('/api/transactions/:id/status', async (req, res) => {
 
 // ==================== ADMIN AUTH & APPROVAL ROUTES ====================
 
-// POST: Admin Login Endpoint (Checks approved admin_accounts table)
+// POST: Admin Login Endpoint
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -250,7 +251,7 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// POST: Register New Admin (Inserts into pending_admin_accounts table)
+// POST: Register New Admin
 app.post('/api/admin/register', async (req, res) => {
   const { fullname, username, password } = req.body;
   try {
@@ -273,7 +274,7 @@ app.post('/api/admin/register', async (req, res) => {
   }
 });
 
-// GET: Fetch Pending Admin Requests (Reads from pending_admin_accounts)
+// GET: Fetch Pending Admin Requests
 app.get('/api/admin/pending', async (req, res) => {
   try {
     const result = await pool.query(`SELECT id, fullname, username, requested_at FROM pending_admin_accounts ORDER BY requested_at ASC`);
@@ -284,7 +285,7 @@ app.get('/api/admin/pending', async (req, res) => {
   }
 });
 
-// PUT: Approve or Reject Admin Account (Transfers between tables)
+// PUT: Approve or Reject Admin Account
 app.put('/api/admin/approve/:id', async (req, res) => {
   const { id } = req.params;
   const { action } = req.body;
@@ -315,15 +316,20 @@ app.put('/api/admin/approve/:id', async (req, res) => {
   }
 });
 
-// ==================== SERVER LISTEN ====================
+// ==================== SERVER LISTEN & INITIALIZATION ====================
 
 const PORT = Number(process.env.PORT) || 5000;
 
 async function startServer() {
   try {
-    const schema = await fs.readFile(path.join(__dirname, 'schema.sql'), 'utf8');
-    await pool.query(schema);
-    console.log('✅ Database schema initialized');
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    try {
+      const schema = await fs.readFile(schemaPath, 'utf8');
+      await pool.query(schema);
+      console.log('✅ Database schema initialized');
+    } catch (schemaErr) {
+      console.warn('⚠️ Could not run schema.sql (skipping if tables exist):', schemaErr.message);
+    }
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
