@@ -344,8 +344,8 @@ async function fetchPendingAdmins() {
         <td><strong>${a.fullname}</strong></td>
         <td><code>${a.username}</code></td>
         <td>
-          <button onclick="approveAdmin(${a.id}, 'APPROVED')" class="btn btn-success btn-sm">Approve</button>
-          <button onclick="approveAdmin(${a.id}, 'REJECTED')" class="btn btn-danger btn-sm">Reject</button>
+        <button onclick="approveAdmin(${a.id}, 'APPROVED')" class="btn btn-sm" style="background-color: #16a34a; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">Approve</button>
+        <button onclick="approveAdmin(${a.id}, 'REJECTED')" class="btn btn-sm" style="background-color: #dc2626; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">Reject</button>
         </td>
       </tr>
     `).join('');
