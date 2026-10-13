@@ -510,9 +510,8 @@ async function renderPosCatalog() {
           <img src="${imgSrc}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/150';">
         </div>
         <div>
-          <div style="display:flex; justify-content:space-between;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <span class="card-tag">${p.category}</span>
-            <span class="card-barcode">${p.barcode}</span>
           </div>
           <h4 class="card-title">${p.name}</h4>
           ${isExpired ? '<span class="error-text">EXPIRED</span>' : (p.expiry ? `<small>Exp: ${p.expiry}</small>` : '<small style="color:#64748b;">No Expiration</small>')}
@@ -596,7 +595,7 @@ function renderCart() {
     <div class="cart-item-row">
       <div>
         <strong>${item.name}</strong><br>
-        <small class="font-mono">${item.barcode} | ₱${item.price.toFixed(2)} x ${item.qty}</small>
+        <small class="font-mono">₱${item.price.toFixed(2)} x ${item.qty}</small>
       </div>
       <div>
         <button onclick="updateCartQty('${item.id}', -1)" class="btn btn-secondary btn-sm">-</button>
