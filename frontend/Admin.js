@@ -66,6 +66,9 @@ async function fetchProducts() {
     productsData = await res.json();
     renderProductsTable();
     if (typeof renderAdminPosCatalog === 'function') {
+      if (typeof renderAdminPosCategoryPills === 'function') {
+        renderAdminPosCategoryPills();
+      }
       renderAdminPosCatalog();
     }
   } catch (err) {
@@ -1004,17 +1007,20 @@ function setAdminPosPaymentMethod(method) {
   const btnGCash = document.getElementById('pos-pay-method-gcash');
   const cashDetails = document.getElementById('admin-pos-cash-details');
   const gcashDetails = document.getElementById('admin-pos-gcash-details');
+  const btnCheckout = document.getElementById('btn-admin-pos-checkout');
 
   if (method === 'Cash') {
     if (btnCash) btnCash.className = 'btn btn-primary';
     if (btnGCash) btnGCash.className = 'btn btn-secondary';
     if (cashDetails) cashDetails.classList.remove('hidden');
     if (gcashDetails) gcashDetails.classList.add('hidden');
+    if (btnCheckout) btnCheckout.innerHTML = '<i class="fa-solid fa-cash-register" style="margin-right: 6px;"></i> Complete Cash Sale &amp; Print Receipt';
   } else {
     if (btnCash) btnCash.className = 'btn btn-secondary';
     if (btnGCash) btnGCash.className = 'btn btn-primary';
     if (cashDetails) cashDetails.classList.add('hidden');
     if (gcashDetails) gcashDetails.classList.remove('hidden');
+    if (btnCheckout) btnCheckout.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> Complete GCash Sale &amp; Print Receipt';
   }
 
   calculateAdminPosChange();
