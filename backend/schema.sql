@@ -1,64 +1,54 @@
--- 1. Create Products Table
 CREATE TABLE IF NOT EXISTS products (
-    id VARCHAR(50) PRIMARY KEY,
-    barcode VARCHAR(100) UNIQUE NOT NULL,
+    id VARCHAR(100) PRIMARY KEY,
+    barcode VARCHAR(100) UNIQUE,
     name VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL,
-    cost DECIMAL(10,2) NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    stock INT NOT NULL DEFAULT 0,
+    cost NUMERIC(10, 2) DEFAULT 0.00,
+    price NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    stock INTEGER NOT NULL DEFAULT 0,
     expiry DATE,
     image TEXT
 );
 
--- Ensure image_url column compatibility if referenced elsewhere
-ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT;
-
--- 2. Create Transactions Table
 CREATE TABLE IF NOT EXISTS transactions (
-    id VARCHAR(50) PRIMARY KEY,
-    customer_name VARCHAR(255) DEFAULT 'Guest Customer',
-    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id VARCHAR(100) PRIMARY KEY,
+    customer_name VARCHAR(255) NOT NULL DEFAULT 'Guest Customer',
     address TEXT NOT NULL,
     gcash_ref VARCHAR(255) DEFAULT 'SCREENSHOT_ATTACHED',
     payment_proof TEXT,
-    total DECIMAL(10,2) NOT NULL,
+    total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     items JSONB NOT NULL,
-    status VARCHAR(50) DEFAULT 'Pending'
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+    date_created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ensure transaction columns exist on existing database instances
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255) DEFAULT 'Guest Customer';
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_proof TEXT;
-ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
-ALTER TABLE transactions ALTER COLUMN gcash_ref TYPE VARCHAR(255);
-
--- 3. Create Approved Admin Accounts Table
 CREATE TABLE IF NOT EXISTS admin_accounts (
     id SERIAL PRIMARY KEY,
-    fullname VARCHAR(100) NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fullname VARCHAR(255) NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Create Separate Table for Pending Admin Registration Requests
 CREATE TABLE IF NOT EXISTS pending_admin_accounts (
     id SERIAL PRIMARY KEY,
-    fullname VARCHAR(100) NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(100) NOT NULL,
-    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fullname VARCHAR(255) NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Seed Primary Admin Account (Gabriel / Gabriel123) into admin_accounts
+CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date_created DESC);
+
 INSERT INTO admin_accounts (fullname, username, password)
-VALUES ('Primary Admin', 'Gabriel', 'Gabriel123')
+VALUES ('Administrator', 'admin', 'password123')
 ON CONFLICT (username) DO NOTHING;
 
--- 6. Seed Default Inventory Items
-INSERT INTO products (id, barcode, name, category, cost, price, stock, expiry) VALUES
-('p1', '4800016022014', 'Lucky Me! Pancit Canton', 'Instant Noodles', 13.00, 16.00, 40, '2027-02-15'),
-('p2', '4800016055012', 'Century Tuna Flakes 180g', 'Canned Goods', 38.50, 46.00, 18, '2027-08-20'),
-('p3', '4800092112345', 'San Mig Coffee 3-in-1', 'Beverages', 7.00, 9.00, 80, '2026-12-10')
+INSERT INTO products (id, barcode, name, category, cost, price, stock, expiry, image)
+VALUES
+    ('p1', '4800016022014', 'Lucky Me! Pancit Canton', 'INSTANT NOODLES', 13.00, 16.00, 38, '2027-02-15', NULL),
+    ('p2', '4800016055012', 'Century Tuna Flakes 180g', 'CANNED GOODS', 38.50, 46.00, 18, '2027-08-20', NULL),
+    ('p3', '4800092112345', 'San Mig Coffee 3-in-1', 'BEVERAGES', 7.00, 9.00, 78, '2026-12-10', NULL)
 ON CONFLICT (id) DO NOTHING;
