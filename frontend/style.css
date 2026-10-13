@@ -1575,3 +1575,90 @@ body {
     display: none !important;
   }
 }
+
+/* ==============================================================
+   CUSTOMER AUTH TABS & PROFILE BADGE
+   ============================================================== */
+.auth-tab-buttons {
+  display: flex;
+  background-color: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  gap: 4px;
+}
+
+.auth-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-tab-btn:hover {
+  color: #0f172a;
+}
+
+.auth-tab-btn.active {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.customer-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Order History Card Hover */
+.order-history-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.order-history-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ==============================================================
+   PRINT STYLES FOR RECEIPTS
+   ============================================================== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt, #printable-receipt *,
+  #printable-admin-receipt, #printable-admin-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt, #printable-admin-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 15px;
+    background: #fff;
+    color: #000;
+  }
+  .no-print, .modal-header, .modal-close {
+    display: none !important;
+  }
+}

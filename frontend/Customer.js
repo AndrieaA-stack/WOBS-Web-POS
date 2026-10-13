@@ -25,6 +25,11 @@ const LOCATION_DATA = {
     "Bahay Pare", "Bancal", "Calvario", "Camalig", 
     "Hulo", "Iba", "Malhacan", "Poblacion", "Saluysoy", "Caingin", "Tugatog"
   ],
+  "Bocaue": [
+    "Antipona", "Bagumbayan", "Bambang", "Batia", "Biñang 1st", "Biñang 2nd", 
+    "Bolacan", "Bundukan", "Bunlo", "Caingin", "Duhat", "Igulot", "Lolomboy", 
+    "Poblacion", "Sulucan", "Taal", "Tambobong", "Turo", "Wakas"
+  ]
 };
 
 // Fallback products when backend database is unavailable
@@ -81,6 +86,314 @@ function updateBarangayOptions() {
   } else {
     brgySelect.innerHTML = '<option value="">Select City First</option>';
     brgySelect.disabled = true;
+  }
+}
+
+// ==================== CUSTOMER AUTH & SESSION MANAGEMENT ====================
+
+function getCurrentCustomer() {
+  try {
+    const raw = sessionStorage.getItem('wobs_customer_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function checkCustomerAuth() {
+  const customer = getCurrentCustomer();
+  const authModal = document.getElementById('modal-customer-auth');
+  const greetingEl = document.getElementById('customer-display-name');
+  const logoutBtn = document.getElementById('btn-customer-logout');
+  const ordersBtn = document.getElementById('btn-customer-orders');
+
+  if (!customer) {
+    if (greetingEl) greetingEl.textContent = 'Guest';
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+    if (ordersBtn) ordersBtn.classList.add('hidden');
+    if (authModal) authModal.classList.remove('hidden');
+    return false;
+  }
+
+  if (greetingEl) greetingEl.textContent = customer.fullname || customer.username;
+  if (logoutBtn) logoutBtn.classList.remove('hidden');
+  if (ordersBtn) ordersBtn.classList.remove('hidden');
+  if (authModal) authModal.classList.add('hidden');
+  return true;
+}
+
+function switchCustomerAuthTab(type) {
+  const tabLogin = document.getElementById('cust-tab-btn-login');
+  const tabReg = document.getElementById('cust-tab-btn-register');
+  const formLogin = document.getElementById('form-cust-login');
+  const formReg = document.getElementById('form-cust-register');
+  const msgEl = document.getElementById('cust-auth-msg');
+
+  if (msgEl) {
+    msgEl.textContent = '';
+    msgEl.className = 'scan-msg';
+  }
+
+  if (type === 'login') {
+    if (tabLogin) tabLogin.className = 'auth-tab-btn active';
+    if (tabReg) tabReg.className = 'auth-tab-btn';
+    if (formLogin) formLogin.classList.remove('hidden');
+    if (formReg) formReg.classList.add('hidden');
+  } else {
+    if (tabReg) tabReg.className = 'auth-tab-btn active';
+    if (tabLogin) tabLogin.className = 'auth-tab-btn';
+    if (formReg) formReg.classList.remove('hidden');
+    if (formLogin) formLogin.classList.add('hidden');
+  }
+}
+
+function updateRegisterBarangayOptions() {
+  const citySelect = document.getElementById('cust-reg-city');
+  const brgySelect = document.getElementById('cust-reg-brgy');
+  if (!citySelect || !brgySelect) return;
+  const selectedCity = citySelect.value;
+
+  brgySelect.innerHTML = '<option value="">Select Barangay</option>';
+  if (selectedCity && LOCATION_DATA[selectedCity]) {
+    LOCATION_DATA[selectedCity].forEach(brgy => {
+      const opt = document.createElement('option');
+      opt.value = brgy;
+      opt.textContent = brgy;
+      brgySelect.appendChild(opt);
+    });
+    brgySelect.disabled = false;
+  } else {
+    brgySelect.innerHTML = '<option value="">Select City First</option>';
+    brgySelect.disabled = true;
+  }
+}
+
+async function handleCustomerLoginSubmit(e) {
+  if (e) e.preventDefault();
+  const username = document.getElementById('cust-login-user').value.trim();
+  const password = document.getElementById('cust-login-pass').value.trim();
+  const msgEl = document.getElementById('cust-auth-msg');
+
+  if (!username || !password) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = '❌ Please enter username and password.';
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/customer/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      sessionStorage.setItem('wobs_customer_user', JSON.stringify(data.user));
+      checkCustomerAuth();
+      renderPosCatalog();
+    } else {
+      if (msgEl) {
+        msgEl.className = 'scan-msg text-danger';
+        msgEl.textContent = '❌ ' + (data.message || 'Invalid username or password.');
+      }
+    }
+  } catch (err) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = '❌ Unable to connect to server. Please try again.';
+    }
+  }
+}
+
+async function handleCustomerRegisterSubmit(e) {
+  if (e) e.preventDefault();
+  const fullname = document.getElementById('cust-reg-fullname').value.trim();
+  const username = document.getElementById('cust-reg-username').value.trim();
+  const password = document.getElementById('cust-reg-password').value.trim();
+  const phone = document.getElementById('cust-reg-phone').value.trim();
+  const city = document.getElementById('cust-reg-city').value;
+  const barangay = document.getElementById('cust-reg-brgy').value;
+  const street = document.getElementById('cust-reg-street').value.trim();
+  const msgEl = document.getElementById('cust-auth-msg');
+
+  if (!fullname || !username || !password || !phone || !city || !barangay || !street) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = '❌ Please complete all registration fields.';
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/customer/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullname, username, password, phone, city, barangay, street })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      sessionStorage.setItem('wobs_customer_user', JSON.stringify(data.user));
+      checkCustomerAuth();
+      renderPosCatalog();
+      alert(`🎉 Welcome to Laura's Store, ${data.user.fullname}! Your account has been registered.`);
+    } else {
+      if (msgEl) {
+        msgEl.className = 'scan-msg text-danger';
+        msgEl.textContent = '❌ ' + (data.message || 'Registration failed.');
+      }
+    }
+  } catch (err) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = '❌ Network error during registration. Please try again.';
+    }
+  }
+}
+
+function handleCustomerLogout() {
+  if (confirm("Are you sure you want to log out of your account?")) {
+    sessionStorage.removeItem('wobs_customer_user');
+    clearCart();
+    checkCustomerAuth();
+  }
+}
+
+// ==================== CUSTOMER ORDER HISTORY & RECEIPT VIEW ====================
+
+function openCustomerOrdersModal() {
+  const modal = document.getElementById('modal-customer-orders');
+  if (modal) {
+    modal.classList.remove('hidden');
+    loadCustomerOrders();
+  }
+}
+
+function closeCustomerOrdersModal() {
+  const modal = document.getElementById('modal-customer-orders');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function loadCustomerOrders() {
+  const customer = getCurrentCustomer();
+  const container = document.getElementById('customer-orders-list');
+  const userLabel = document.getElementById('my-orders-username-label');
+
+  if (!customer) {
+    if (container) container.innerHTML = '<p class="text-muted" style="text-align:center; padding:20px;">Please login to view your orders.</p>';
+    return;
+  }
+
+  if (userLabel) userLabel.textContent = `${customer.fullname} (@${customer.username})`;
+  if (container) container.innerHTML = '<p class="text-muted" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading your order history...</p>';
+
+  try {
+    const res = await fetch(`${API_URL}/customer/orders/${customer.username}`);
+    if (!res.ok) throw new Error("Failed to load orders");
+    const orders = await res.json();
+
+    if (!orders || orders.length === 0) {
+      if (container) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:35px 20px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px;">
+            <i class="fa-solid fa-bag-shopping" style="font-size:32px; color:#94a3b8; margin-bottom:10px;"></i>
+            <h4 style="margin:0 0 4px 0; color:#334155;">No Orders Found</h4>
+            <p style="margin:0; font-size:13px; color:#64748b;">You haven't placed any orders yet. Add items to your cart and check out!</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    if (container) {
+      container.innerHTML = orders.map(order => {
+        const orderId = order.id.startsWith('#') ? order.id : `#${order.id}`;
+        const rawDate = order.date_created ? new Date(order.date_created).toLocaleString() : '--';
+        const total = parseFloat(order.total || 0).toFixed(2);
+        const status = (order.status || 'Pending').toUpperCase();
+
+        let badgeBg = '#0284c7';
+        let badgeText = status;
+        if (status === 'DELIVERED' || status === 'COMPLETED') {
+          badgeBg = '#16a34a';
+        } else if (status === 'OUT FOR DELIVERY') {
+          badgeBg = '#eab308';
+        } else if (status === 'PREPARING ORDER' || status === 'PROCESSING') {
+          badgeBg = '#9333ea';
+        } else if (status === 'CANCELLED') {
+          badgeBg = '#ef4444';
+        }
+
+        let items = [];
+        try {
+          items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        } catch (e) {
+          items = [];
+        }
+
+        const itemsSummary = Array.isArray(items) 
+          ? items.map(i => `${i.name} (x${i.qty})`).join(', ') 
+          : 'Items breakdown unavailable';
+
+        const orderSafeJson = encodeURIComponent(JSON.stringify({
+          id: order.id,
+          date: rawDate,
+          customerName: order.customer_name || customer.fullname,
+          address: order.address,
+          total: parseFloat(order.total || 0),
+          items: items
+        }));
+
+        return `
+          <div class="order-history-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <strong style="font-size:14px; color:#0f172a;">${orderId}</strong>
+                <span style="font-size:11px; color:#64748b;">${rawDate}</span>
+              </div>
+              <span style="background:${badgeBg}; color:#ffffff; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; letter-spacing:0.5px;">
+                ${badgeText}
+              </span>
+            </div>
+            
+            <div style="font-size:12px; color:#475569; margin-bottom:6px;">
+              <span style="color:#64748b;">Items:</span> <strong>${itemsSummary}</strong>
+            </div>
+
+            <div style="font-size:12px; color:#475569; margin-bottom:10px;">
+              <span style="color:#64748b;">Delivery Address:</span> ${order.address || 'N/A'}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #e2e8f0; padding-top:8px;">
+              <div>
+                <span style="font-size:12px; color:#64748b;">Total Amount:</span>
+                <strong style="font-size:15px; color:#16a34a; margin-left:4px;">₱${total}</strong>
+                <span style="font-size:11px; color:#64748b; margin-left:6px;">(GCash)</span>
+              </div>
+              <button onclick="viewCustomerOrderReceipt('${orderSafeJson}')" class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 10px;">
+                <i class="fa-solid fa-receipt" style="margin-right:4px;"></i> View Receipt
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    if (container) {
+      container.innerHTML = '<p class="text-danger" style="text-align:center; padding:20px;">❌ Error loading orders. Please check connection.</p>';
+    }
+  }
+}
+
+function viewCustomerOrderReceipt(encodedOrder) {
+  try {
+    const order = JSON.parse(decodeURIComponent(encodedOrder));
+    openReceiptModal(order);
+  } catch (e) {
+    console.error("Receipt parsing error:", e);
   }
 }
 
@@ -313,6 +626,10 @@ function scrollToCart() {
 }
 
 function openGCashModal() {
+  if (!checkCustomerAuth()) {
+    return;
+  }
+
   var grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
   if (grandTotal < MIN_DELIVERY_AMOUNT) {
@@ -321,11 +638,30 @@ function openGCashModal() {
   }
 
   document.getElementById('gcash-modal-amount').textContent = '₱' + grandTotal.toFixed(2);
-  document.getElementById('cust-name').value = '';
-  document.getElementById('cust-city').value = '';
-  document.getElementById('cust-brgy').innerHTML = '<option value="">Select City First</option>';
-  document.getElementById('cust-brgy').disabled = true;
-  document.getElementById('cust-street').value = '';
+  
+  // Pre-fill delivery details from logged-in customer profile
+  const customer = getCurrentCustomer();
+  if (customer) {
+    document.getElementById('cust-name').value = customer.fullname || '';
+    if (customer.city) {
+      document.getElementById('cust-city').value = customer.city;
+      updateBarangayOptions();
+      if (customer.barangay) {
+        document.getElementById('cust-brgy').value = customer.barangay;
+      }
+    } else {
+      document.getElementById('cust-city').value = '';
+      document.getElementById('cust-brgy').innerHTML = '<option value="">Select City First</option>';
+      document.getElementById('cust-brgy').disabled = true;
+    }
+    document.getElementById('cust-street').value = customer.street || '';
+  } else {
+    document.getElementById('cust-name').value = '';
+    document.getElementById('cust-city').value = '';
+    document.getElementById('cust-brgy').innerHTML = '<option value="">Select City First</option>';
+    document.getElementById('cust-brgy').disabled = true;
+    document.getElementById('cust-street').value = '';
+  }
   
   const proofInput = document.getElementById('gcash-proof-input');
   if (proofInput) proofInput.value = '';
@@ -336,6 +672,12 @@ function openGCashModal() {
 function closeGCashModal() { document.getElementById('modal-gcash').classList.add('hidden'); }
 
 async function processGCashPayment() {
+  const customer = getCurrentCustomer();
+  if (!customer) {
+    checkCustomerAuth();
+    return;
+  }
+
   const name = document.getElementById('cust-name').value.trim();
   const city = document.getElementById('cust-city').value;
   const brgy = document.getElementById('cust-brgy').value;
@@ -366,12 +708,16 @@ async function processGCashPayment() {
 
     const newTxn = {
       id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
+      customerId: customer.id,
+      customerUsername: customer.username,
       customerName: name,
       address: fullAddress,
       items: cart,
       total: grandTotal,
       gcashRef: 'SCREENSHOT_ATTACHED',
-      paymentProof: proofBase64
+      paymentProof: proofBase64,
+      paymentMethod: 'GCash',
+      status: 'Pending'
     };
 
     const res = await fetch(`${API_URL}/checkout`, {
@@ -384,14 +730,19 @@ async function processGCashPayment() {
     clearCart();
     closeGCashModal();
     renderPosCatalog();
+    loadCustomerOrders();
   } catch (err) {
     const newTxn = {
       id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
+      customerId: customer ? customer.id : null,
+      customerUsername: customer ? customer.username : null,
       customerName: name,
       address: fullAddress,
       items: cart,
       total: grandTotal,
-      gcashRef: 'SCREENSHOT_ATTACHED'
+      gcashRef: 'SCREENSHOT_ATTACHED',
+      paymentMethod: 'GCash',
+      status: 'Pending'
     };
     openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
     clearCart();
@@ -403,16 +754,18 @@ async function processGCashPayment() {
 function openReceiptModal(txn) {
   document.getElementById('receipt-id').textContent = '#' + txn.id;
   document.getElementById('receipt-date').textContent = txn.date;
-  document.getElementById('receipt-address').textContent = `${txn.customerName} | ${txn.address}`;
+  document.getElementById('receipt-address').textContent = `${txn.customerName || txn.customer_name} | ${txn.address}`;
   document.getElementById('receipt-gcash-ref').textContent = 'Verified Screenshot';
-  document.getElementById('receipt-total-amount').textContent = '₱' + txn.total.toFixed(2);
-  document.getElementById('receipt-items-list').innerHTML = txn.items.map(i => `<p>${i.name} (x${i.qty}) - ₱${(i.price * i.qty).toFixed(2)}</p>`).join('');
+  document.getElementById('receipt-total-amount').textContent = '₱' + parseFloat(txn.total).toFixed(2);
+  const items = Array.isArray(txn.items) ? txn.items : (typeof txn.items === 'string' ? JSON.parse(txn.items) : []);
+  document.getElementById('receipt-items-list').innerHTML = items.map(i => `<p>${i.name} (x${i.qty}) - ₱${(i.price * i.qty).toFixed(2)}</p>`).join('');
   document.getElementById('modal-receipt').classList.remove('hidden');
 }
 
 function closeReceiptModal() { document.getElementById('modal-receipt').classList.add('hidden'); }
 
 window.onload = function() {
+  checkCustomerAuth();
   renderPosCatalog();
   renderCart();
 

@@ -131,28 +131,42 @@ app.delete('/api/products/:id', async (req, res) => {
 
 // ==================== TRANSACTION & ORDER ROUTES ====================
 
-// POST: Process atomic checkout transaction
+// POST: Process atomic checkout transaction (Supports Customer Online Orders & Admin POS Walk-ins)
 app.post('/api/checkout', async (req, res) => {
-  const { id, customerName, address, items, total, gcashRef, paymentProof } = req.body;
+  const {
+    id,
+    customerId,
+    customerUsername,
+    customerName,
+    address,
+    items,
+    total,
+    gcashRef,
+    paymentProof,
+    paymentMethod,
+    status
+  } = req.body;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-
     const txnQuery = `
-      INSERT INTO transactions (id, customer_name, address, gcash_ref, payment_proof, total, items, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO transactions (id, customer_id, customer_username, customer_name, address, gcash_ref, payment_proof, total, items, status, payment_method)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `;
     await client.query(txnQuery, [
       id,
-      customerName || 'Guest Customer',
-      address,
+      customerId || null,
+      customerUsername || null,
+      customerName || 'Customer',
+      address || 'In-Store POS / Walk-in',
       gcashRef || 'SCREENSHOT_ATTACHED',
       paymentProof || null,
-      total,
+      parseFloat(total) || 0,
       JSON.stringify(items),
-      'Pending'
+      status || 'Pending',
+      paymentMethod || 'GCash'
     ]);
 
 
@@ -213,6 +227,101 @@ app.put('/api/transactions/:id/status', async (req, res) => {
   } catch (err) {
     console.error("❌ Error updating status:", err.message);
     res.status(500).json({ error: 'Database status update failed: ' + err.message });
+  }
+});
+
+// ==================== CUSTOMER AUTH & ORDER ROUTES ====================
+
+// POST: Register New Customer
+app.post('/api/customer/register', async (req, res) => {
+  const { fullname, username, password, phone, city, barangay, street } = req.body;
+  if (!fullname || !username || !password) {
+    return res.status(400).json({ success: false, message: "Full name, username, and password are required." });
+  }
+
+  try {
+    const existingCheck = await pool.query(
+      `SELECT 1 FROM customers WHERE LOWER(username) = LOWER($1)`,
+      [username.trim()]
+    );
+    if (existingCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Username is already registered. Please choose another or login." });
+    }
+
+    const customerId = "cust_" + Date.now();
+    await pool.query(
+      `INSERT INTO customers (id, fullname, username, password, phone, city, barangay, street)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        customerId,
+        fullname.trim(),
+        username.trim(),
+        password,
+        phone ? phone.trim() : null,
+        city ? city.trim() : null,
+        barangay ? barangay.trim() : null,
+        street ? street.trim() : null
+      ]
+    );
+
+    const user = {
+      id: customerId,
+      fullname: fullname.trim(),
+      username: username.trim(),
+      phone: phone ? phone.trim() : '',
+      city: city ? city.trim() : '',
+      barangay: barangay ? barangay.trim() : '',
+      street: street ? street.trim() : ''
+    };
+
+    res.json({ success: true, message: "Customer account created successfully!", user });
+  } catch (err) {
+    console.error("Customer register error:", err);
+    res.status(500).json({ success: false, message: "Registration failed: " + err.message });
+  }
+});
+
+// POST: Customer Login
+app.post('/api/customer/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Username and password required." });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, fullname, username, phone, city, barangay, street 
+       FROM customers 
+       WHERE LOWER(username) = LOWER($1) AND password = $2`,
+      [username.trim(), password]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid customer username or password." });
+    }
+
+    const user = result.rows[0];
+    res.json({ success: true, message: "Welcome back!", user });
+  } catch (err) {
+    console.error("Customer login error:", err);
+    res.status(500).json({ success: false, message: "Database connection failed." });
+  }
+});
+
+// GET: Fetch Customer's Orders History
+app.get('/api/customer/orders/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM transactions 
+       WHERE LOWER(customer_username) = LOWER($1) 
+       ORDER BY date_created DESC`,
+      [username.trim()]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Fetch customer orders error:", err);
+    res.status(500).json({ error: "Failed to fetch orders: " + err.message });
   }
 });
 

@@ -23,22 +23,29 @@ function checkAdminAccess() {
 
 // Tab Switcher
 function switchAdminTab(tabName) {
+  const btnPos = document.getElementById('tab-btn-pos');
   const btnProducts = document.getElementById('tab-btn-products');
   const btnTxns = document.getElementById('tab-btn-txns');
   const btnAnalytics = document.getElementById('tab-btn-analytics');
 
+  const secPos = document.getElementById('section-pos');
   const secProducts = document.getElementById('section-products');
   const secTxns = document.getElementById('section-txns');
   const secAnalytics = document.getElementById('section-analytics');
 
+  if (btnPos) btnPos.className = tabName === 'pos' ? "btn btn-primary" : "btn btn-secondary";
   if (btnProducts) btnProducts.className = tabName === 'products' ? "btn btn-primary" : "btn btn-secondary";
   if (btnTxns) btnTxns.className = tabName === 'txns' ? "btn btn-primary" : "btn btn-secondary";
   if (btnAnalytics) btnAnalytics.className = tabName === 'analytics' ? "btn btn-primary" : "btn btn-secondary";
 
+  if (secPos) secPos.classList.toggle('hidden', tabName !== 'pos');
   if (secProducts) secProducts.classList.toggle('hidden', tabName !== 'products');
   if (secTxns) secTxns.classList.toggle('hidden', tabName !== 'txns');
   if (secAnalytics) secAnalytics.classList.toggle('hidden', tabName !== 'analytics');
 
+  if (tabName === 'pos') {
+    initAdminPos();
+  }
   if (tabName === 'products') {
     fetchProducts();
     fetchPendingAdmins();
@@ -52,6 +59,9 @@ async function fetchProducts() {
     const res = await fetch(`${API_URL}/products`);
     productsData = await res.json();
     renderProductsTable();
+    if (typeof renderAdminPosCatalog === 'function') {
+      renderAdminPosCatalog();
+    }
   } catch (err) {
     console.error("Error fetching products:", err);
   }
@@ -753,6 +763,511 @@ async function renderAnalytics() {
       `).join('');
     }
   }
+}
+
+// ==============================================================
+// IN-STORE CASHIER POS TERMINAL FOR ADMIN
+// ==============================================================
+
+let posCart = [];
+let posSelectedCategory = 'All';
+let posPaymentMethod = 'Cash';
+let posScannerReader = null;
+
+function initAdminPos() {
+  const cashier = sessionStorage.getItem('wobs_admin_username') || 'Admin';
+  const cashierLabel = document.getElementById('admin-pos-cashier-label');
+  if (cashierLabel) cashierLabel.textContent = `Cashier: ${cashier}`;
+
+  if (!productsData || productsData.length === 0) {
+    fetchProducts().then(() => {
+      renderAdminPosCategoryPills();
+      renderAdminPosCatalog();
+    });
+  } else {
+    renderAdminPosCategoryPills();
+    renderAdminPosCatalog();
+  }
+  renderAdminPosTicket();
+}
+
+function renderAdminPosCategoryPills() {
+  const container = document.getElementById('admin-pos-category-pills');
+  if (!container) return;
+
+  const categories = ['All', ...new Set(productsData.map(p => p.category).filter(Boolean))];
+  container.innerHTML = categories.map(cat => `
+    <button type="button" onclick="setAdminPosCategory('${cat}')" class="pill-btn ${posSelectedCategory === cat ? 'active' : ''}">
+      ${cat}
+    </button>
+  `).join('');
+}
+
+function setAdminPosCategory(cat) {
+  posSelectedCategory = cat;
+  renderAdminPosCategoryPills();
+  renderAdminPosCatalog();
+}
+
+function renderAdminPosCatalog() {
+  const container = document.getElementById('admin-pos-catalog');
+  const searchInput = document.getElementById('admin-pos-search');
+  if (!container) return;
+
+  const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  const filtered = productsData.filter(p => {
+    const matchesCat = (posSelectedCategory === 'All' || p.category === posSelectedCategory);
+    const matchesSearch = (!search || p.name.toLowerCase().includes(search) || (p.barcode && String(p.barcode).toLowerCase().includes(search)));
+    return matchesCat && matchesSearch;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="text-muted" style="grid-column: 1/-1; text-align:center; padding:30px;">No matching products found in catalog.</p>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const stock = parseInt(p.stock, 10) || 0;
+    const isOutOfStock = stock <= 0;
+    const isExpired = p.expiry && (new Date(p.expiry) < new Date().setHours(0,0,0,0));
+    const canAdd = !isOutOfStock && !isExpired;
+
+    let imgSrc = 'https://via.placeholder.com/150';
+    if (p.image && typeof p.image === 'string' && p.image.trim() !== '') {
+      imgSrc = p.image.startsWith('data:image') ? p.image : `data:image/jpeg;base64,${p.image}`;
+    } else if (p.image_url && typeof p.image_url === 'string' && p.image_url.trim() !== '') {
+      imgSrc = p.image_url;
+    }
+
+    return `
+      <div class="product-card ${isExpired ? 'expired' : ''}" style="cursor: ${canAdd ? 'pointer' : 'not-allowed'};" onclick="${canAdd ? `addToAdminPosCart('${p.id}')` : ''}">
+        <div style="width:100%; height:120px; background-color:#f1f5f9; border-radius:6px; overflow:hidden; margin-bottom:8px; display:flex; align-items:center; justify-content:center;">
+          <img src="${imgSrc}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/150';">
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-tag">${p.category}</span>
+            <span class="card-barcode" style="font-size:10px;">${p.barcode}</span>
+          </div>
+          <h4 class="card-title" style="margin:4px 0; font-size:13px; font-weight:700;">${p.name}</h4>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:${isOutOfStock ? '#ef4444' : '#16a34a'}; font-weight:600;">
+              ${isOutOfStock ? 'OUT OF STOCK' : `Stock: ${stock}`}
+            </span>
+            ${isExpired ? '<span style="color:#ef4444; font-weight:bold;">EXPIRED</span>' : (p.expiry ? `<span style="color:#64748b;">Exp: ${p.expiry.split('T')[0]}</span>` : '<span style="color:#94a3b8;">No Expiry</span>')}
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0;">
+          <span class="card-price" style="font-size:14px; color:#0f172a;">₱${parseFloat(p.price).toFixed(2)}</span>
+          <button type="button" class="btn btn-primary btn-sm" ${!canAdd ? 'disabled' : ''} onclick="event.stopPropagation(); addToAdminPosCart('${p.id}')" style="padding:4px 10px; font-size:11px;">
+            <i class="fa-solid fa-plus"></i> Add
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addToAdminPosCart(productId) {
+  const prod = productsData.find(p => String(p.id) === String(productId));
+  if (!prod) return;
+
+  const stock = parseInt(prod.stock, 10) || 0;
+  if (stock <= 0) {
+    showAdminPosFeedback(`❌ Cannot add "${prod.name}": Out of stock!`, 'danger');
+    return;
+  }
+
+  const isExpired = prod.expiry && (new Date(prod.expiry) < new Date().setHours(0,0,0,0));
+  if (isExpired) {
+    showAdminPosFeedback(`❌ Cannot add "${prod.name}": Item is expired!`, 'danger');
+    return;
+  }
+
+  const existing = posCart.find(c => String(c.id) === String(productId));
+  if (existing) {
+    if (existing.qty < stock) {
+      existing.qty++;
+      showAdminPosFeedback(`✅ Added another "${prod.name}" (Qty: ${existing.qty})`, 'primary');
+    } else {
+      showAdminPosFeedback(`⚠️ Maximum available stock reached for "${prod.name}" (${stock})`, 'danger');
+      return;
+    }
+  } else {
+    posCart.push({
+      id: prod.id,
+      name: prod.name,
+      barcode: prod.barcode,
+      price: parseFloat(prod.price),
+      cost: parseFloat(prod.cost || 0),
+      qty: 1,
+      maxStock: stock
+    });
+    showAdminPosFeedback(`✅ Added "${prod.name}" to register ticket`, 'primary');
+  }
+
+  if (typeof playBeepSound === 'function') {
+    playBeepSound();
+  }
+
+  renderAdminPosTicket();
+}
+
+function updateAdminPosQty(productId, delta) {
+  const item = posCart.find(c => String(c.id) === String(productId));
+  if (!item) return;
+
+  item.qty += delta;
+  if (item.qty <= 0) {
+    posCart = posCart.filter(c => String(c.id) !== String(productId));
+  } else if (item.qty > item.maxStock) {
+    item.qty = item.maxStock;
+    showAdminPosFeedback(`⚠️ Maximum available stock for "${item.name}" is ${item.maxStock}`, 'danger');
+  }
+
+  renderAdminPosTicket();
+}
+
+function removeAdminPosItem(productId) {
+  posCart = posCart.filter(c => String(c.id) !== String(productId));
+  renderAdminPosTicket();
+}
+
+function clearAdminPosCart() {
+  if (posCart.length === 0) return;
+  posCart = [];
+  const tenderedInput = document.getElementById('admin-pos-cash-tendered');
+  if (tenderedInput) tenderedInput.value = '';
+  renderAdminPosTicket();
+  showAdminPosFeedback('Register ticket cleared.', 'primary');
+}
+
+function renderAdminPosTicket() {
+  const itemsContainer = document.getElementById('admin-pos-cart-items');
+  const countEl = document.getElementById('admin-pos-items-count');
+  const subtotalEl = document.getElementById('admin-pos-subtotal');
+  const grandTotalEl = document.getElementById('admin-pos-grand-total');
+
+  if (!itemsContainer) return;
+
+  const totalItems = posCart.reduce((sum, item) => sum + item.qty, 0);
+  const grandTotal = posCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  if (countEl) countEl.textContent = `${totalItems} item${totalItems !== 1 ? 's' : ''}`;
+  if (subtotalEl) subtotalEl.textContent = `₱${grandTotal.toFixed(2)}`;
+  if (grandTotalEl) grandTotalEl.textContent = `₱${grandTotal.toFixed(2)}`;
+
+  if (posCart.length === 0) {
+    itemsContainer.innerHTML = `
+      <div style="text-align:center; padding:30px 10px; color:#94a3b8;">
+        <i class="fa-solid fa-basket-shopping" style="font-size:28px; margin-bottom:8px;"></i>
+        <p style="margin:0; font-size:13px;">Register ticket is empty.<br>Scan barcode or click items to add.</p>
+      </div>
+    `;
+    calculateAdminPosChange();
+    return;
+  }
+
+  itemsContainer.innerHTML = posCart.map(item => `
+    <div class="cart-item-row" style="padding:8px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+      <div style="flex:1; padding-right:8px;">
+        <strong style="font-size:13px; color:#0f172a; display:block;">${item.name}</strong>
+        <small style="color:#64748b; font-family:monospace; font-size:11px;">
+          ${item.barcode} | ₱${item.price.toFixed(2)} ea
+        </small>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="updateAdminPosQty('${item.id}', -1)" class="btn btn-secondary btn-sm" style="padding:2px 8px; font-weight:bold;">-</button>
+        <span style="font-size:13px; font-weight:bold; min-width:20px; text-align:center;">${item.qty}</span>
+        <button type="button" onclick="updateAdminPosQty('${item.id}', 1)" class="btn btn-secondary btn-sm" style="padding:2px 8px; font-weight:bold;">+</button>
+        <strong style="font-size:13px; color:#0f172a; min-width:65px; text-align:right;">₱${(item.price * item.qty).toFixed(2)}</strong>
+        <button type="button" onclick="removeAdminPosItem('${item.id}')" class="btn-link text-danger" style="margin-left:4px; font-size:13px;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  calculateAdminPosChange();
+}
+
+function setAdminPosPaymentMethod(method) {
+  posPaymentMethod = method;
+  const btnCash = document.getElementById('pos-pay-method-cash');
+  const btnGCash = document.getElementById('pos-pay-method-gcash');
+  const cashDetails = document.getElementById('admin-pos-cash-details');
+  const gcashDetails = document.getElementById('admin-pos-gcash-details');
+
+  if (method === 'Cash') {
+    if (btnCash) btnCash.className = 'btn btn-primary';
+    if (btnGCash) btnGCash.className = 'btn btn-secondary';
+    if (cashDetails) cashDetails.classList.remove('hidden');
+    if (gcashDetails) gcashDetails.classList.add('hidden');
+  } else {
+    if (btnCash) btnCash.className = 'btn btn-secondary';
+    if (btnGCash) btnGCash.className = 'btn btn-primary';
+    if (cashDetails) cashDetails.classList.add('hidden');
+    if (gcashDetails) gcashDetails.classList.remove('hidden');
+  }
+
+  calculateAdminPosChange();
+}
+
+function addAdminPosCash(amount) {
+  const input = document.getElementById('admin-pos-cash-tendered');
+  if (!input) return;
+  const current = parseFloat(input.value) || 0;
+  input.value = (current + amount).toFixed(2);
+  calculateAdminPosChange();
+}
+
+function setAdminPosExactAmount() {
+  const input = document.getElementById('admin-pos-cash-tendered');
+  if (!input) return;
+  const grandTotal = posCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  input.value = grandTotal.toFixed(2);
+  calculateAdminPosChange();
+}
+
+function calculateAdminPosChange() {
+  const grandTotal = posCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const checkoutBtn = document.getElementById('btn-admin-pos-checkout');
+  const changeEl = document.getElementById('admin-pos-change');
+  const input = document.getElementById('admin-pos-cash-tendered');
+
+  if (posCart.length === 0) {
+    if (changeEl) {
+      changeEl.textContent = '₱0.00';
+      changeEl.style.color = '#16a34a';
+    }
+    if (checkoutBtn) checkoutBtn.disabled = true;
+    return;
+  }
+
+  if (posPaymentMethod === 'GCash') {
+    if (changeEl) changeEl.textContent = '₱0.00 (GCash)';
+    if (checkoutBtn) checkoutBtn.disabled = false;
+    return;
+  }
+
+  const tendered = parseFloat(input ? input.value : 0) || 0;
+  const diff = tendered - grandTotal;
+
+  if (tendered === 0) {
+    if (changeEl) {
+      changeEl.textContent = '₱0.00';
+      changeEl.style.color = '#64748b';
+    }
+    if (checkoutBtn) checkoutBtn.disabled = true;
+  } else if (diff < 0) {
+    if (changeEl) {
+      changeEl.textContent = `Insufficient (Needs ₱${Math.abs(diff).toFixed(2)})`;
+      changeEl.style.color = '#ef4444';
+    }
+    if (checkoutBtn) checkoutBtn.disabled = true;
+  } else {
+    if (changeEl) {
+      changeEl.textContent = `₱${diff.toFixed(2)}`;
+      changeEl.style.color = '#16a34a';
+    }
+    if (checkoutBtn) checkoutBtn.disabled = false;
+  }
+}
+
+function handleAdminPosBarcodeKeypress(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleAdminPosBarcodeManualAdd();
+  }
+}
+
+function handleAdminPosBarcodeManualAdd() {
+  const input = document.getElementById('admin-pos-barcode-input');
+  if (!input) return;
+  const code = input.value.trim();
+  if (!code) return;
+  processAdminPosBarcode(code);
+  input.value = '';
+}
+
+function processAdminPosBarcode(code) {
+  const cleanCode = String(code).trim();
+  const prod = productsData.find(p => p.barcode && String(p.barcode).trim() === cleanCode);
+
+  if (prod) {
+    addToAdminPosCart(prod.id);
+  } else {
+    showAdminPosFeedback(`❌ Barcode "${cleanCode}" not found in inventory!`, 'danger');
+  }
+}
+
+function showAdminPosFeedback(msg, type) {
+  const el = document.getElementById('admin-pos-scan-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = type === 'danger' ? 'scan-msg text-danger' : 'scan-msg text-primary';
+  el.classList.remove('hidden');
+  setTimeout(() => {
+    if (el) el.classList.add('hidden');
+  }, 4000);
+}
+
+// POS Camera Barcode Scanner
+async function openPosCameraScanner() {
+  const modal = document.getElementById('modal-pos-camera-scanner');
+  const video = document.getElementById('pos-scanner-video');
+  const msg = document.getElementById('pos-camera-scanner-msg');
+
+  if (modal) modal.classList.remove('hidden');
+  if (msg) msg.textContent = 'Initializing camera barcode scanner...';
+
+  try {
+    if (!posScannerReader && window.ZXing) {
+      posScannerReader = new ZXing.BrowserMultiFormatReader();
+    }
+
+    if (posScannerReader && video) {
+      posScannerReader.decodeFromVideoDevice(null, video, (result, err) => {
+        if (result && result.text) {
+          if (typeof playBeepSound === 'function') playBeepSound();
+          processAdminPosBarcode(result.text);
+          closePosCameraScanner();
+        }
+      });
+      if (msg) msg.textContent = 'Point camera at product barcode';
+    }
+  } catch (err) {
+    if (msg) msg.textContent = '❌ Camera access error: ' + err.message;
+  }
+}
+
+function closePosCameraScanner() {
+  const modal = document.getElementById('modal-pos-camera-scanner');
+  if (modal) modal.classList.add('hidden');
+
+  if (posScannerReader) {
+    posScannerReader.reset();
+  }
+}
+
+// POS Atomic Sale Checkout
+async function processAdminPosCheckout() {
+  if (posCart.length === 0) {
+    alert("Register ticket is empty.");
+    return;
+  }
+
+  const grandTotal = posCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const tenderedInput = document.getElementById('admin-pos-cash-tendered');
+  const customerNameInput = document.getElementById('admin-pos-customer-name');
+  const tendered = parseFloat(tenderedInput ? tenderedInput.value : 0) || 0;
+  const customerName = (customerNameInput && customerNameInput.value.trim()) ? customerNameInput.value.trim() : 'Walk-in Customer';
+
+  if (posPaymentMethod === 'Cash' && tendered < grandTotal) {
+    alert(`Insufficient amount tendered. Total is ₱${grandTotal.toFixed(2)}, but received ₱${tendered.toFixed(2)}.`);
+    return;
+  }
+
+  const changeGiven = posPaymentMethod === 'Cash' ? (tendered - grandTotal) : 0;
+  const txnId = 'WOBS-' + Math.floor(100000 + Math.random() * 900000);
+  const cashierUsername = sessionStorage.getItem('wobs_admin_username') || 'Admin';
+
+  const checkoutPayload = {
+    id: txnId,
+    customerId: null,
+    customerUsername: null,
+    customerName: customerName,
+    address: 'In-Store Walk-in POS',
+    items: posCart,
+    total: grandTotal,
+    gcashRef: posPaymentMethod === 'GCash' ? 'WALK_IN_GCASH' : 'CASH_SALE',
+    paymentMethod: posPaymentMethod,
+    status: 'Completed'
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkoutPayload)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to complete sale');
+    }
+
+    // Display Printable Receipt
+    openAdminReceiptModal({
+      id: txnId,
+      date: new Date().toLocaleString(),
+      cashier: cashierUsername,
+      customerName: customerName,
+      items: [...posCart],
+      total: grandTotal,
+      tendered: tendered,
+      change: changeGiven,
+      paymentMethod: posPaymentMethod
+    });
+
+    // Reset register
+    posCart = [];
+    if (tenderedInput) tenderedInput.value = '';
+    if (customerNameInput) customerNameInput.value = '';
+    renderAdminPosTicket();
+
+    // Re-sync inventory and analytics
+    fetchProducts();
+    if (typeof fetchTransactions === 'function') fetchTransactions();
+  } catch (err) {
+    alert("❌ Error processing in-store checkout: " + err.message);
+  }
+}
+
+function openAdminReceiptModal(data) {
+  document.getElementById('admin-receipt-id').textContent = '#' + data.id;
+  document.getElementById('admin-receipt-date').textContent = data.date;
+  document.getElementById('admin-receipt-cashier').textContent = data.cashier;
+  document.getElementById('admin-receipt-customer').textContent = data.customerName;
+  document.getElementById('admin-receipt-payment-method').textContent = data.paymentMethod;
+  document.getElementById('admin-receipt-subtotal').textContent = '₱' + data.total.toFixed(2);
+  document.getElementById('admin-receipt-grand-total').textContent = '₱' + data.total.toFixed(2);
+
+  const tenderedRow = document.getElementById('admin-receipt-tendered-row');
+  const changeRow = document.getElementById('admin-receipt-change-row');
+
+  if (data.paymentMethod === 'Cash') {
+    if (tenderedRow) {
+      tenderedRow.style.display = 'flex';
+      document.getElementById('admin-receipt-tendered').textContent = '₱' + data.tendered.toFixed(2);
+    }
+    if (changeRow) {
+      changeRow.style.display = 'flex';
+      document.getElementById('admin-receipt-change').textContent = '₱' + data.change.toFixed(2);
+    }
+  } else {
+    if (tenderedRow) tenderedRow.style.display = 'none';
+    if (changeRow) changeRow.style.display = 'none';
+  }
+
+  const itemsList = document.getElementById('admin-receipt-items-list');
+  if (itemsList) {
+    itemsList.innerHTML = data.items.map(item => `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span>${item.name} &times; ${item.qty}</span>
+        <strong>₱${(item.price * item.qty).toFixed(2)}</strong>
+      </div>
+    `).join('');
+  }
+
+  const modal = document.getElementById('modal-admin-receipt');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAdminReceiptModal() {
+  const modal = document.getElementById('modal-admin-receipt');
+  if (modal) modal.classList.add('hidden');
 }
 
 function handleAdminLogout() {
