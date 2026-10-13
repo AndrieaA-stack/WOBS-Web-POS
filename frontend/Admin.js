@@ -315,32 +315,36 @@ function renderTransactionsTable() {
     if (currentStatus === 'Pending') {
       actionButtons = `
         <div class="action-btn-group">
-          <button onclick="updateOrderStatus('${txn.id}', 'Accepted')" class="btn-action-accept">Accept</button>
-          <button onclick="updateOrderStatus('${txn.id}', 'Declined')" class="btn-action-decline">Decline</button>
+          <button onclick="updateOrderStatus('${txn.id}', 'Accepted')" class="btn-action-accept" title="Accept Order">
+            <i class="fa-solid fa-check"></i> Accept
+          </button>
+          <button onclick="updateOrderStatus('${txn.id}', 'Declined')" class="btn-action-decline" title="Decline Order">
+            <i class="fa-solid fa-xmark"></i> Decline
+          </button>
         </div>
       `;
     } else if (['Accepted', 'Preparing Order', 'Out for Delivery', 'Delivered'].includes(currentStatus)) {
-      actionButtons = `<span style="color: #16a34a; font-weight: 700; font-size: 12px;">✅ Accepted</span>`;
+      actionButtons = `<span style="color: #16a34a; font-weight: 700; font-size: 12px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><i class="fa-solid fa-square-check"></i> Accepted</span>`;
     } else if (currentStatus === 'Declined') {
-      actionButtons = `<span style="color: #dc2626; font-weight: 700; font-size: 12px;">❌ Declined</span>`;
+      actionButtons = `<span style="color: #dc2626; font-weight: 700; font-size: 12px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><i class="fa-solid fa-rectangle-xmark"></i> Declined</span>`;
     }
 
     return `
       <tr>
-        <td><strong style="color: #0284c7;">#${txn.id}</strong></td>
-        <td><small>${formattedDate}</small></td>
+        <td style="white-space: nowrap;"><strong style="color: #0284c7; font-family: monospace; font-size: 13px;">#${txn.id}</strong></td>
+        <td style="white-space: nowrap;"><small style="color: #475569;">${formattedDate}</small></td>
         <td><strong>${custName}</strong></td>
         <td><small style="color: #334155;">${txn.address}</small></td>
-        <td style="text-align: right;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
-        <td style="text-align: center;">
+        <td style="text-align: right; white-space: nowrap;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
+        <td style="text-align: center; white-space: nowrap;">
           ${hasProof 
-            ? `<button onclick="viewProofImage('${txn.id}')" style="background: #0f172a; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;">View Screenshot</button>` 
+            ? `<button onclick="viewProofImage('${txn.id}')" class="btn-proof-view"><i class="fa-solid fa-image"></i> View Screenshot</button>` 
             : `<span style="color: #94a3b8; font-size: 12px;">No Image</span>`
           }
         </td>
         <td><small style="color: #334155;">${itemListStr}</small></td>
-        <td style="text-align: center;">
-          <select onchange="updateOrderStatus('${txn.id}', this.value)" style="font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; background: #0f172a; color: #fff; border: 1px solid #334155; cursor: pointer; outline: none;">
+        <td style="text-align: center; white-space: nowrap;">
+          <select onchange="updateOrderStatus('${txn.id}', this.value)" class="status-select">
             <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
             <option value="Accepted" ${currentStatus === 'Accepted' ? 'selected' : ''}>Accepted</option>
             <option value="Preparing Order" ${currentStatus === 'Preparing Order' ? 'selected' : ''}>Preparing Order</option>
@@ -349,7 +353,7 @@ function renderTransactionsTable() {
             <option value="Declined" ${currentStatus === 'Declined' ? 'selected' : ''}>Declined</option>
           </select>
         </td>
-        <td style="text-align: center;">${actionButtons}</td>
+        <td style="text-align: center; white-space: nowrap;">${actionButtons}</td>
       </tr>
     `;
   }).join('');
