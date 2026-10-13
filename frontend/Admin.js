@@ -1,6 +1,13 @@
-const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") 
+// Replace with your exact Render Web Service URL
+const RENDER_BACKEND_URL = "https://wobs-web-pos.onrender.com"; 
+
+const API_URL = (
+  window.location.hostname === "localhost" || 
+  window.location.hostname === "127.0.0.1" || 
+  window.location.protocol === "file:"
+) 
   ? "http://localhost:5000/api" 
-  : "/api";
+  : `${RENDER_BACKEND_URL}/api`;
 
 let productsData = [];
 let transactionsData = [];
@@ -427,7 +434,6 @@ function handleAdminLogout() {
     window.location.href = "Welcomepage.html";
   }
 }
-
 
 window.onload = function() {
   checkAdminAccess();

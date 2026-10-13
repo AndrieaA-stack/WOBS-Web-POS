@@ -20,128 +20,44 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Database Connection
-const pool = new Pool(process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
-  : {
-      user: process.env.PGUSER || 'postgres',
-      host: process.env.PGHOST || 'localhost',
-      database: process.env.PGDATABASE || 'wobs_db',
-      password: process.env.PGPASSWORD || 'gab',
-      port: Number(process.env.PGPORT) || 5432,
-    });
+// Dynamic Database Connection (Local .env vs Render Production)
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.DATABASE_URL;
+
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      }
+    : {
+        user: process.env.PGUSER || 'postgres',
+        host: process.env.PGHOST || 'localhost',
+        database: process.env.PGDATABASE || 'wobs_db',
+        password: process.env.PGPASSWORD || 'gab',
+        port: Number(process.env.PGPORT) || 5432,
+      }
+);
 
 pool.on('error', (err) => {
   console.error('Unexpected pool error on idle client:', err);
 });
 
+// Non-blocking connection check
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ Database connection error:', err.message);
+  } else {
+    console.log(`✅ Connected to PostgreSQL database (${isProduction ? 'Production/Render' : 'Local'})`);
+  }
+});
+
+// Serve static frontend assets
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'Welcomepage.html'));
 });
 
-// ---------------- ADMIN ENDPOINTS ----------------
 
-// POST: Admin Login (Checks active admin_accounts table)
-app.post('/api/admin/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const result = await pool.query(
-      `SELECT * FROM admin_accounts WHERE LOWER(username) = LOWER($1) AND password = $2`,
-      [username, password]
-    );
-
-    if (result.rows.length === 0) {
-      // Check if account is still in pending_admin_accounts
-      const pendingCheck = await pool.query(
-        `SELECT * FROM pending_admin_accounts WHERE LOWER(username) = LOWER($1)`,
-        [username]
-      );
-
-      if (pendingCheck.rows.length > 0) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account request is still PENDING approval from an existing Admin."
-        });
-      }
-
-      return res.status(401).json({ success: false, message: "Invalid username or password." });
-    }
-
-    const user = result.rows[0];
-    res.json({ success: true, user: { username: user.username, fullname: user.fullname } });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Database connection failed." });
-  }
-});
-
-// POST: Register New Admin (Inserts into pending_admin_accounts table)
-app.post('/api/admin/register', async (req, res) => {
-  const { fullname, username, password } = req.body;
-  try {
-    // Check if username already exists in approved admins or pending requests
-    const activeCheck = await pool.query(`SELECT 1 FROM admin_accounts WHERE LOWER(username) = LOWER($1)`, [username]);
-    const pendingCheck = await pool.query(`SELECT 1 FROM pending_admin_accounts WHERE LOWER(username) = LOWER($1)`, [username]);
-
-    if (activeCheck.rows.length > 0 || pendingCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: "Username already exists or is pending approval." });
-    }
-
-    await pool.query(
-      `INSERT INTO pending_admin_accounts (fullname, username, password) VALUES ($1, $2, $3)`,
-      [fullname, username, password]
-    );
-
-    res.json({ success: true, message: "Registration request submitted for approval." });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Failed to submit request." });
-  }
-});
-
-// GET: Fetch All Pending Requests (Reads from pending_admin_accounts)
-app.get('/api/admin/pending', async (req, res) => {
-  try {
-    const result = await pool.query(`SELECT id, fullname, username, requested_at FROM pending_admin_accounts ORDER BY requested_at ASC`);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch pending requests." });
-  }
-});
-
-// PUT: Approve or Reject Request (Transfers from pending_admin_accounts to admin_accounts)
-app.put('/api/admin/approve/:id', async (req, res) => {
-  const { id } = req.params;
-  const { action } = req.body; // 'APPROVED' or 'REJECTED'
-
-  try {
-    if (action === 'APPROVED') {
-      // Find pending user
-      const pendingRes = await pool.query(`SELECT * FROM pending_admin_accounts WHERE id = $1`, [id]);
-      if (pendingRes.rows.length === 0) {
-        return res.status(404).json({ error: "Pending request not found." });
-      }
-
-      const pendingUser = pendingRes.rows[0];
-
-      // Move into active admin_accounts
-      await pool.query(
-        `INSERT INTO admin_accounts (fullname, username, password) VALUES ($1, $2, $3)`,
-        [pendingUser.fullname, pendingUser.username, pendingUser.password]
-      );
-
-      // Remove from pending_admin_accounts
-      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
-    } else {
-      // Reject: delete request from pending_admin_accounts
-      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Approval error:", err);
-    res.status(500).json({ error: "Action failed." });
-  }
-});
 // ==================== HEALTH & PRODUCT ROUTES ====================
 
 // GET: Health Check
@@ -252,7 +168,7 @@ app.post('/api/checkout', async (req, res) => {
     }
 
     await client.query('COMMIT');
-    
+
     res.status(200).json({ message: 'Order processed successfully', txnId: id });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -301,7 +217,7 @@ app.put('/api/transactions/:id/status', async (req, res) => {
 
 // ==================== ADMIN AUTH & APPROVAL ROUTES ====================
 
-// POST: Admin Login Endpoint
+// POST: Admin Login Endpoint (Checks approved admin_accounts table)
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -311,17 +227,22 @@ app.post('/api/admin/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      const pendingCheck = await pool.query(
+        `SELECT * FROM pending_admin_accounts WHERE LOWER(username) = LOWER($1)`,
+        [username]
+      );
+
+      if (pendingCheck.rows.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Your account request is still PENDING approval from an existing Admin."
+        });
+      }
+
       return res.status(401).json({ success: false, message: "Invalid username or password." });
     }
 
     const user = result.rows[0];
-    if (user.status !== 'APPROVED') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Your account request is still PENDING approval from an existing Admin." 
-      });
-    }
-
     res.json({ success: true, user: { username: user.username, fullname: user.fullname } });
   } catch (err) {
     console.error("Login error:", err);
@@ -329,42 +250,67 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// POST: Register New Admin
+// POST: Register New Admin (Inserts into pending_admin_accounts table)
 app.post('/api/admin/register', async (req, res) => {
   const { fullname, username, password } = req.body;
   try {
+    const activeCheck = await pool.query(`SELECT 1 FROM admin_accounts WHERE LOWER(username) = LOWER($1)`, [username]);
+    const pendingCheck = await pool.query(`SELECT 1 FROM pending_admin_accounts WHERE LOWER(username) = LOWER($1)`, [username]);
+
+    if (activeCheck.rows.length > 0 || pendingCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Username already exists or is pending approval." });
+    }
+
     await pool.query(
-      `INSERT INTO admin_accounts (fullname, username, password, status) VALUES ($1, $2, $3, 'PENDING')`,
+      `INSERT INTO pending_admin_accounts (fullname, username, password) VALUES ($1, $2, $3)`,
       [fullname, username, password]
     );
-    res.json({ success: true, message: "Registration submitted for approval." });
+
+    res.json({ success: true, message: "Registration request submitted for approval." });
   } catch (err) {
-    res.status(400).json({ success: false, message: "Username already exists." });
+    console.error("Registration error:", err);
+    res.status(500).json({ success: false, message: "Failed to submit request." });
   }
 });
 
-// GET: Fetch Pending Admin Requests
+// GET: Fetch Pending Admin Requests (Reads from pending_admin_accounts)
 app.get('/api/admin/pending', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, fullname, username, created_at FROM admin_accounts WHERE status = 'PENDING'`);
+    const result = await pool.query(`SELECT id, fullname, username, requested_at FROM pending_admin_accounts ORDER BY requested_at ASC`);
     res.json(result.rows);
   } catch (err) {
+    console.error("Fetch pending error:", err);
     res.status(500).json({ error: "Failed to fetch pending requests." });
   }
 });
 
-// PUT: Approve or Reject Admin Account
+// PUT: Approve or Reject Admin Account (Transfers between tables)
 app.put('/api/admin/approve/:id', async (req, res) => {
   const { id } = req.params;
   const { action } = req.body;
+
   try {
     if (action === 'APPROVED') {
-      await pool.query(`UPDATE admin_accounts SET status = 'APPROVED' WHERE id = $1`, [id]);
+      const pendingRes = await pool.query(`SELECT * FROM pending_admin_accounts WHERE id = $1`, [id]);
+      if (pendingRes.rows.length === 0) {
+        return res.status(404).json({ error: "Pending request not found." });
+      }
+
+      const pendingUser = pendingRes.rows[0];
+
+      await pool.query(
+        `INSERT INTO admin_accounts (fullname, username, password) VALUES ($1, $2, $3)`,
+        [pendingUser.fullname, pendingUser.username, pendingUser.password]
+      );
+
+      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
     } else {
-      await pool.query(`DELETE FROM admin_accounts WHERE id = $1`, [id]);
+      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
     }
+
     res.json({ success: true });
   } catch (err) {
+    console.error("Approval error:", err);
     res.status(500).json({ error: "Action failed." });
   }
 });

@@ -1,22 +1,27 @@
 services:
+  # Node.js Express Backend Service
   - type: web
-    name: wobs-web-pos
-    runtime: node
+    name: wobs-backend
+    env: node
+    region: singapore
     plan: free
     rootDir: backend
     buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /api/health
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 5000
       - key: DATABASE_URL
         fromDatabase:
-          name: wobs-postgres
+          name: wobs-db
           property: connectionString
 
+# PostgreSQL Managed Database
 databases:
-  - name: wobs-postgres
+  - name: wobs-db
+    region: singapore
     plan: free
     databaseName: wobs_db
-    user: wobs_user
+    user: postgres
