@@ -54,7 +54,7 @@ async function fetchProductsFromDB() {
       cost: parseFloat(p.cost),
       price: parseFloat(p.price),
       stock: parseInt(p.stock, 10) || 0,
-      expiry: p.expiry ? p.expiry.split('T')[0] : '2027-12-31'
+      expiry: (p.expiry && String(p.expiry).trim() !== '' && p.expiry !== 'null') ? p.expiry.split('T')[0] : null
     }));
   } catch (err) {
     console.warn("⚠️ Unable to reach backend API. Loading local presentation data.");
@@ -85,9 +85,11 @@ function updateBarangayOptions() {
 }
 
 function getDaysToExpiry(expiryDateStr) {
+  if (!expiryDateStr || expiryDateStr === 'N/A' || expiryDateStr === 'null') return 999999;
   var today = new Date();
   today.setHours(0,0,0,0);
   var expDate = new Date(expiryDateStr);
+  if (isNaN(expDate.getTime())) return 999999;
   expDate.setHours(0,0,0,0);
   return Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
 }
@@ -194,7 +196,7 @@ async function renderPosCatalog() {
             <span class="card-barcode">${p.barcode}</span>
           </div>
           <h4 class="card-title">${p.name}</h4>
-          ${isExpired ? '<span class="error-text">EXPIRED</span>' : `<small>Exp: ${p.expiry}</small>`}
+          ${isExpired ? '<span class="error-text">EXPIRED</span>' : (p.expiry ? `<small>Exp: ${p.expiry}</small>` : '<small style="color:#64748b;">No Expiration</small>')}
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
           <span class="card-price">₱${p.price.toFixed(2)}</span>

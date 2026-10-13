@@ -415,6 +415,7 @@ function openFullScannerPage() {
     price: document.getElementById('prod-price')?.value || '',
     stock: document.getElementById('prod-stock')?.value || '',
     expiry: document.getElementById('prod-expiry')?.value || '',
+    noExpiry: document.getElementById('prod-no-expiry')?.checked || false,
     photo: document.getElementById('prod-photo-base64')?.value || ''
   };
   sessionStorage.setItem('wobs_product_draft', JSON.stringify(draft));
@@ -443,7 +444,13 @@ function checkScannedBarcodeReturn() {
         if (draft.cost) document.getElementById('prod-cost').value = draft.cost;
         if (draft.price) document.getElementById('prod-price').value = draft.price;
         if (draft.stock) document.getElementById('prod-stock').value = draft.stock;
-        if (draft.expiry) document.getElementById('prod-expiry').value = draft.expiry;
+
+        if (draft.noExpiry) {
+          if (typeof toggleNoExpiry === 'function') toggleNoExpiry(true);
+        } else if (draft.expiry) {
+          document.getElementById('prod-expiry').value = draft.expiry;
+          if (typeof toggleNoExpiry === 'function') toggleNoExpiry(false);
+        }
 
         if (draft.photo && draft.photo.trim() !== '') {
           const photoInput = document.getElementById('prod-photo-base64');

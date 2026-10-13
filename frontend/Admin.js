@@ -77,8 +77,9 @@ function renderProductsTable() {
   }
 
   tbody.innerHTML = productsData.map(p => {
-    const expiryStr = p.expiry ? p.expiry.split('T')[0] : 'N/A';
-    const isExpired = p.expiry && new Date(p.expiry) < new Date();
+    const hasExpiry = p.expiry && String(p.expiry).trim() !== '' && p.expiry !== 'null' && p.expiry !== 'N/A';
+    const expiryStr = hasExpiry ? p.expiry.split('T')[0] : 'No Expiry';
+    const isExpired = hasExpiry && new Date(p.expiry) < new Date();
     const stockNum = parseInt(p.stock || 0, 10);
 
     // Stock Badge
@@ -92,9 +93,11 @@ function renderProductsTable() {
     }
 
     // Expiry Display
-    const expiryBadge = isExpired
-      ? `<span class="badge" style="background:#fee2e2; color:#dc2626; font-size:11px; padding:3px 6px; border-radius:4px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>${expiryStr}</span>`
-      : `<span style="font-size:12px; color:#475569;"><i class="fa-regular fa-calendar" style="color:#94a3b8; margin-right:4px;"></i>${expiryStr}</span>`;
+    const expiryBadge = !hasExpiry
+      ? `<span class="badge" style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; font-size:11px; padding:3px 7px; border-radius:4px;"><i class="fa-solid fa-infinity" style="margin-right:4px; font-size:10px;"></i>No Expiry</span>`
+      : isExpired
+        ? `<span class="badge" style="background:#fee2e2; color:#dc2626; font-size:11px; padding:3px 6px; border-radius:4px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>${expiryStr}</span>`
+        : `<span style="font-size:12px; color:#475569;"><i class="fa-regular fa-calendar" style="color:#94a3b8; margin-right:4px;"></i>${expiryStr}</span>`;
 
     // Clean display ID
     const cleanId = String(p.id).startsWith('p_') && String(p.id).length > 8 
@@ -144,6 +147,26 @@ function renderProductsTable() {
   }).join('');
 }
 
+function toggleNoExpiry(isNoExpiry) {
+  const expiryInput = document.getElementById('prod-expiry');
+  const noExpiryCheckbox = document.getElementById('prod-no-expiry');
+  if (noExpiryCheckbox) noExpiryCheckbox.checked = isNoExpiry;
+  if (expiryInput) {
+    if (isNoExpiry) {
+      expiryInput.value = '';
+      expiryInput.disabled = true;
+      expiryInput.style.backgroundColor = '#f1f5f9';
+      expiryInput.style.color = '#94a3b8';
+      expiryInput.style.cursor = 'not-allowed';
+    } else {
+      expiryInput.disabled = false;
+      expiryInput.style.backgroundColor = '';
+      expiryInput.style.color = '';
+      expiryInput.style.cursor = '';
+    }
+  }
+}
+
 function openProductModal() {
   if (typeof stopCameraStream === 'function') stopCameraStream();
   if (typeof stopBarcodeScanner === 'function') stopBarcodeScanner();
@@ -160,6 +183,7 @@ function openProductModal() {
   document.getElementById('prod-price').value = "";
   document.getElementById('prod-stock').value = "";
   document.getElementById('prod-expiry').value = "";
+  toggleNoExpiry(false);
 
   if (document.getElementById('prod-photo-base64')) {
     document.getElementById('prod-photo-base64').value = "";
@@ -194,7 +218,15 @@ function editProduct(id) {
   document.getElementById('prod-cost').value = p.cost;
   document.getElementById('prod-price').value = p.price;
   document.getElementById('prod-stock').value = p.stock;
-  document.getElementById('prod-expiry').value = p.expiry ? p.expiry.split('T')[0] : "";
+
+  const hasExpiry = p.expiry && String(p.expiry).trim() !== '' && p.expiry !== 'null' && p.expiry !== 'N/A';
+  if (hasExpiry) {
+    document.getElementById('prod-expiry').value = p.expiry.split('T')[0];
+    toggleNoExpiry(false);
+  } else {
+    document.getElementById('prod-expiry').value = "";
+    toggleNoExpiry(true);
+  }
 
   const photoInput = document.getElementById('prod-photo-base64');
   const imagePreview = document.getElementById('image-preview');
@@ -245,15 +277,35 @@ async function saveProduct() {
     photoBase64 = imagePreview.src;
   }
 
+  const isNoExpiry = document.getElementById('prod-no-expiry')?.checked || false;
+  const expiryVal = isNoExpiry ? null : (document.getElementById('prod-expiry').value.trim() || null);
+
+  const barcodeVal = document.getElementById('prod-barcode').value.trim();
+  const nameVal = document.getElementById('prod-name').value.trim();
+  const categoryVal = document.getElementById('prod-category').value.trim();
+
+  if (!nameVal) {
+    alert("Please enter a product name.");
+    return;
+  }
+  if (!categoryVal) {
+    alert("Please enter a category.");
+    return;
+  }
+  if (!isNoExpiry && !expiryVal) {
+    alert("Please select an expiration date, or check 'No Expiration Date'.");
+    return;
+  }
+
   const productPayload = {
     id: document.getElementById('prod-id').value,
-    barcode: document.getElementById('prod-barcode').value.trim(),
-    name: document.getElementById('prod-name').value.trim(),
-    category: document.getElementById('prod-category').value.trim(),
+    barcode: barcodeVal,
+    name: nameVal,
+    category: categoryVal,
     cost: parseFloat(document.getElementById('prod-cost').value) || 0,
     price: parseFloat(document.getElementById('prod-price').value) || 0,
     stock: parseInt(document.getElementById('prod-stock').value) || 0,
-    expiry: document.getElementById('prod-expiry').value,
+    expiry: expiryVal,
     image: photoBase64
   };
 
