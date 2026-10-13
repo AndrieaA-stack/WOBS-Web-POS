@@ -247,6 +247,8 @@ function renderCart() {
 
   if (!container) return;
 
+  var mobileBar = document.getElementById('mobile-cart-bar');
+
   if (cart.length === 0) {
     container.innerHTML = '<p class="text-muted" style="text-align:center; padding:20px;">Cart is empty.</p>';
     if (totalEl) totalEl.textContent = '₱0.00';
@@ -256,10 +258,21 @@ function renderCart() {
       minMsgEl.style.display = 'block';
       minMsgEl.textContent = '⚠️ Minimum order for delivery is ₱150.00';
     }
+    if (mobileBar) mobileBar.classList.add('hidden');
     return;
   }
 
   var grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  var totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  if (mobileBar) {
+    var countEl = document.getElementById('mobile-cart-count');
+    var mobileTotalEl = document.getElementById('mobile-cart-total');
+    if (countEl) countEl.textContent = `${totalItems} item${totalItems > 1 ? 's' : ''}`;
+    if (mobileTotalEl) mobileTotalEl.textContent = '₱' + grandTotal.toFixed(2);
+    mobileBar.classList.remove('hidden');
+  }
+
   container.innerHTML = cart.map(item => `
     <div class="cart-item-row">
       <div>
@@ -289,6 +302,13 @@ function renderCart() {
     if (minMsgEl) {
       minMsgEl.style.display = 'none';
     }
+  }
+}
+
+function scrollToCart() {
+  var cartSection = document.getElementById('pos-cart-section');
+  if (cartSection) {
+    cartSection.scrollIntoView({ behavior: 'smooth' });
   }
 }
 

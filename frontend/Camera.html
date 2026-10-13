@@ -115,7 +115,7 @@
 
     <!-- Main Tab Navigation -->
     <nav class="bg-white border-b border-slate-200 px-4">
-        <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto scrollbar-none py-2">
+        <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto scrollbar-none py-2" style="-webkit-overflow-scrolling: touch;">
             <button onclick="switchTab('camera')" id="tab-camera" class="tab-btn active flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition whitespace-nowrap bg-sky-50 text-sky-700 border border-sky-200">
                 <i class="fa-solid fa-camera"></i>
                 <span>Live Camera</span>
@@ -489,7 +489,7 @@
 
     <!-- Quick Search Lookup Modal -->
     <div id="lookupModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto">
             <button onclick="closeLookupModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
