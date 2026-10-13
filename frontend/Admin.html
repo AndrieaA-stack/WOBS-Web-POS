@@ -37,7 +37,8 @@
     <div class="admin-tabs-nav">
       <button id="tab-btn-pos" onclick="switchAdminTab('pos')" class="btn btn-secondary"><i class="fa-solid fa-cash-register" style="margin-right: 6px;"></i>Cashier POS</button>
       <button id="tab-btn-products" onclick="switchAdminTab('products')" class="btn btn-primary"><i class="fa-solid fa-boxes-stacked" style="margin-right: 6px;"></i>Inventory Management</button>
-      <button id="tab-btn-txns" onclick="switchAdminTab('txns')" class="btn btn-secondary"><i class="fa-solid fa-receipt" style="margin-right: 6px;"></i>Transactions &amp; GCash Proofs</button>
+      <button id="tab-btn-txns" onclick="switchAdminTab('txns')" class="btn btn-secondary"><i class="fa-solid fa-truck-ramp-box" style="margin-right: 6px;"></i>Customer Orders</button>
+      <button id="tab-btn-walkin" onclick="switchAdminTab('walkin')" class="btn btn-secondary"><i class="fa-solid fa-store" style="margin-right: 6px;"></i>Walk-in Transactions</button>
       <button id="tab-btn-analytics" onclick="switchAdminTab('analytics')" class="btn btn-secondary"><i class="fa-solid fa-chart-line" style="margin-right: 6px;"></i>Sales Analytics</button>
     </div>
 
@@ -96,12 +97,23 @@
       </div>
     </div>
 
-    <!-- TAB 2: TRANSACTIONS & PROOF SCREENSHOTS -->
+    <!-- TAB 2: ONLINE CUSTOMER ORDERS -->
     <div id="section-txns" class="admin-section hidden">
       <div class="table-container">
-        <div style="margin-bottom: 20px;">
-          <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px;">Order Transactions Log</h2>
-          <p style="margin: 0; color: #64748b; font-size: 13px;">View completed customer orders, delivery addresses, GCash payment screenshots, and manage order statuses.</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px;"><i class="fa-solid fa-truck-ramp-box" style="color: #0284c7; margin-right: 8px;"></i>Customer Online Orders</h2>
+            <p style="margin: 0; color: #64748b; font-size: 13px;">View and manage customer delivery orders, verified GCash payment screenshots, and fulfillment statuses.</p>
+          </div>
+          <!-- Quick Switcher Tabs -->
+          <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="switchAdminTab('txns')" class="btn btn-primary btn-sm" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-truck-ramp-box" style="margin-right: 4px;"></i> Customer Orders <span id="badge-online-count" class="badge" style="background: rgba(255,255,255,0.25); color: #fff; margin-left: 4px;">0</span>
+            </button>
+            <button type="button" onclick="switchAdminTab('walkin')" class="btn btn-secondary btn-sm" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-store" style="margin-right: 4px;"></i> Walk-in Transactions <span id="badge-walkin-count-sub" class="badge" style="background: #e2e8f0; color: #475569; margin-left: 4px;">0</span>
+            </button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -120,6 +132,48 @@
               </tr>
             </thead>
             <tbody id="admin-txns-list">
+              <!-- Dynamically populated via Admin.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2B: WALK-IN IN-STORE TRANSACTIONS -->
+    <div id="section-walkin" class="admin-section hidden">
+      <div class="table-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0 0 6px 0; color: #0f172a; font-size: 20px;"><i class="fa-solid fa-store" style="color: #16a34a; margin-right: 8px;"></i>Walk-in POS Transactions</h2>
+            <p style="margin: 0; color: #64748b; font-size: 13px;">View in-store register sales, cash payments, attached walk-in GCash receipt photos, and reprint receipts.</p>
+          </div>
+          <!-- Quick Switcher Tabs -->
+          <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="switchAdminTab('txns')" class="btn btn-secondary btn-sm" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-truck-ramp-box" style="margin-right: 4px;"></i> Customer Orders <span id="badge-online-count-sub" class="badge" style="background: #e2e8f0; color: #475569; margin-left: 4px;">0</span>
+            </button>
+            <button type="button" onclick="switchAdminTab('walkin')" class="btn btn-primary btn-sm" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">
+              <i class="fa-solid fa-store" style="margin-right: 4px;"></i> Walk-in Transactions <span id="badge-walkin-count" class="badge" style="background: rgba(255,255,255,0.25); color: #fff; margin-left: 4px;">0</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th style="width: 140px; white-space: nowrap;">Txn ID</th>
+                <th style="width: 160px; white-space: nowrap;">Date / Time</th>
+                <th style="width: 150px; white-space: nowrap;">Customer Name</th>
+                <th style="text-align: center; width: 140px; white-space: nowrap;">Payment Method</th>
+                <th style="text-align: right; width: 110px; white-space: nowrap;">Total Paid</th>
+                <th style="text-align: center; width: 160px; white-space: nowrap;">Receipt Photo</th>
+                <th style="min-width: 240px;">Items Purchased</th>
+                <th style="text-align: center; width: 120px; white-space: nowrap;">Status</th>
+                <th style="text-align: center; width: 130px; white-space: nowrap;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="admin-walkin-list">
               <!-- Dynamically populated via Admin.js -->
             </tbody>
           </table>

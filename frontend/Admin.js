@@ -32,21 +32,25 @@ function switchAdminTab(tabName) {
   const btnPos = document.getElementById('tab-btn-pos');
   const btnProducts = document.getElementById('tab-btn-products');
   const btnTxns = document.getElementById('tab-btn-txns');
+  const btnWalkin = document.getElementById('tab-btn-walkin');
   const btnAnalytics = document.getElementById('tab-btn-analytics');
 
   const secPos = document.getElementById('section-pos');
   const secProducts = document.getElementById('section-products');
   const secTxns = document.getElementById('section-txns');
+  const secWalkin = document.getElementById('section-walkin');
   const secAnalytics = document.getElementById('section-analytics');
 
   if (btnPos) btnPos.className = tabName === 'pos' ? "btn btn-primary" : "btn btn-secondary";
   if (btnProducts) btnProducts.className = tabName === 'products' ? "btn btn-primary" : "btn btn-secondary";
   if (btnTxns) btnTxns.className = tabName === 'txns' ? "btn btn-primary" : "btn btn-secondary";
+  if (btnWalkin) btnWalkin.className = tabName === 'walkin' ? "btn btn-primary" : "btn btn-secondary";
   if (btnAnalytics) btnAnalytics.className = tabName === 'analytics' ? "btn btn-primary" : "btn btn-secondary";
 
   if (secPos) secPos.classList.toggle('hidden', tabName !== 'pos');
   if (secProducts) secProducts.classList.toggle('hidden', tabName !== 'products');
   if (secTxns) secTxns.classList.toggle('hidden', tabName !== 'txns');
+  if (secWalkin) secWalkin.classList.toggle('hidden', tabName !== 'walkin');
   if (secAnalytics) secAnalytics.classList.toggle('hidden', tabName !== 'analytics');
 
   if (tabName === 'pos') {
@@ -56,8 +60,12 @@ function switchAdminTab(tabName) {
     fetchProducts();
     fetchPendingAdmins();
   }
-  if (tabName === 'txns') fetchTransactions();
-  if (tabName === 'analytics') renderAnalytics();
+  if (tabName === 'txns' || tabName === 'walkin') {
+    fetchTransactions();
+  }
+  if (tabName === 'analytics') {
+    renderAnalytics();
+  }
 }
 
 async function fetchProducts() {
@@ -380,22 +388,70 @@ async function fetchTransactions() {
   }
 }
 
-// 1. Render Transactions Table with Accept & Decline Action Buttons
+// Helper to determine if transaction is Walk-in POS vs. Online Customer Order
+function isWalkInTransaction(txn) {
+  if (!txn) return false;
+  const addr = String(txn.address || '').toLowerCase();
+  const ref = String(txn.gcash_ref || '').toUpperCase();
+  const custName = String(txn.customer_name || '').toLowerCase();
+  return (
+    addr.includes('walk-in') || 
+    addr.includes('in-store') || 
+    ref.includes('WALK_IN') || 
+    ref.includes('CASH_SALE') || 
+    (!txn.customer_id && !txn.customer_username && addr.includes('pos')) ||
+    (custName.includes('walk-in') && !txn.customer_id)
+  );
+}
+
+// 1. Render Transactions Tables (Separated into Online Orders and Walk-in POS)
 function renderTransactionsTable() {
+  const onlineTxns = transactionsData.filter(t => !isWalkInTransaction(t));
+  const walkinTxns = transactionsData.filter(t => isWalkInTransaction(t));
+
+  // Sync count badges
+  const onlineBadge = document.getElementById('badge-online-count');
+  const onlineBadgeSub = document.getElementById('badge-online-count-sub');
+  const walkinBadge = document.getElementById('badge-walkin-count');
+  const walkinBadgeSub = document.getElementById('badge-walkin-count-sub');
+
+  if (onlineBadge) onlineBadge.textContent = onlineTxns.length;
+  if (onlineBadgeSub) onlineBadgeSub.textContent = onlineTxns.length;
+  if (walkinBadge) walkinBadge.textContent = walkinTxns.length;
+  if (walkinBadgeSub) walkinBadgeSub.textContent = walkinTxns.length;
+
+  renderOnlineOrdersTable(onlineTxns);
+  renderWalkinTransactionsTable(walkinTxns);
+}
+
+function renderOnlineOrdersTable(orders) {
   const tbody = document.getElementById('admin-txns-list');
   if (!tbody) return;
 
-  if (transactionsData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">No transactions recorded.</td></tr>';
+  if (orders.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center; padding:35px 20px; color:#64748b;">
+          <i class="fa-solid fa-truck-ramp-box" style="font-size:28px; color:#cbd5e1; display:block; margin-bottom:8px;"></i>
+          <strong>No Online Customer Orders Found</strong>
+          <p style="margin:4px 0 0 0; font-size:12px; color:#94a3b8;">When customers place orders online with GCash proofs, they will appear here.</p>
+        </td>
+      </tr>
+    `;
     return;
   }
 
-  tbody.innerHTML = transactionsData.map(txn => {
-    const items = typeof txn.items === 'string' ? JSON.parse(txn.items) : txn.items;
-    const itemListStr = items.map(i => `${i.name} (x${i.qty})`).join(', ');
-    const formattedDate = new Date(txn.date_created).toLocaleString();
-    const hasProof = txn.payment_proof && txn.payment_proof.startsWith('data:image');
-    const custName = txn.customer_name || 'Guest Customer';
+  tbody.innerHTML = orders.map(txn => {
+    let items = [];
+    try {
+      items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
+    } catch (e) {
+      items = [];
+    }
+    const itemListStr = Array.isArray(items) ? items.map(i => `${i.name} (x${i.qty})`).join(', ') : 'No items';
+    const formattedDate = txn.date_created ? new Date(txn.date_created).toLocaleString() : '--';
+    const hasProof = txn.payment_proof && (txn.payment_proof.startsWith('data:image') || txn.payment_proof.startsWith('http'));
+    const custName = txn.customer_name || 'Customer';
     const currentStatus = txn.status || 'Pending';
 
     // Side-by-side Action Buttons
@@ -422,12 +478,12 @@ function renderTransactionsTable() {
         <td style="white-space: nowrap;"><strong style="color: #0284c7; font-family: monospace; font-size: 13px;">#${txn.id}</strong></td>
         <td style="white-space: nowrap;"><small style="color: #475569;">${formattedDate}</small></td>
         <td><strong>${custName}</strong></td>
-        <td><small style="color: #334155;">${txn.address}</small></td>
-        <td style="text-align: right; white-space: nowrap;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total).toFixed(2)}</strong></td>
+        <td><small style="color: #334155;">${txn.address || 'N/A'}</small></td>
+        <td style="text-align: right; white-space: nowrap;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total || 0).toFixed(2)}</strong></td>
         <td style="text-align: center; white-space: nowrap;">
           ${hasProof 
             ? `<button onclick="viewProofImage('${txn.id}')" class="btn-proof-view"><i class="fa-solid fa-image"></i> View Screenshot</button>` 
-            : `<span style="color: #94a3b8; font-size: 12px;">No Image</span>`
+            : `<span style="color: #94a3b8; font-size: 12px;">No Screenshot</span>`
           }
         </td>
         <td><small style="color: #334155;">${itemListStr}</small></td>
@@ -445,6 +501,100 @@ function renderTransactionsTable() {
       </tr>
     `;
   }).join('');
+}
+
+function renderWalkinTransactionsTable(walkins) {
+  const tbody = document.getElementById('admin-walkin-list');
+  if (!tbody) return;
+
+  if (walkins.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center; padding:35px 20px; color:#64748b;">
+          <i class="fa-solid fa-store" style="font-size:28px; color:#cbd5e1; display:block; margin-bottom:8px;"></i>
+          <strong>No Walk-in POS Transactions Recorded Yet</strong>
+          <p style="margin:4px 0 0 0; font-size:12px; color:#94a3b8;">Sales completed through Cashier POS (Cash or GCash) will appear here.</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = walkins.map(txn => {
+    let items = [];
+    try {
+      items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
+    } catch (e) {
+      items = [];
+    }
+    const itemListStr = Array.isArray(items) ? items.map(i => `${i.name} (x${i.qty})`).join(', ') : 'No items';
+    const formattedDate = txn.date_created ? new Date(txn.date_created).toLocaleString() : '--';
+    const hasProof = txn.payment_proof && (txn.payment_proof.startsWith('data:image') || txn.payment_proof.startsWith('http'));
+    const isCash = txn.payment_method === 'Cash' || String(txn.gcash_ref).includes('CASH');
+    const custName = txn.customer_name || 'Walk-in Customer';
+
+    const payBadge = isCash
+      ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700; font-size:11px; padding:3px 8px; border-radius:6px;"><i class="fa-solid fa-money-bill-wave" style="margin-right:4px;"></i>Cash</span>`
+      : `<span class="badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-weight:700; font-size:11px; padding:3px 8px; border-radius:6px;"><i class="fa-solid fa-mobile-screen-button" style="margin-right:4px;"></i>GCash Walk-in</span>`;
+
+    const proofDisplay = hasProof
+      ? `<button onclick="viewProofImage('${txn.id}')" class="btn-proof-view"><i class="fa-solid fa-camera"></i> View Photo</button>`
+      : (isCash 
+          ? `<span style="color:#94a3b8; font-size:11px;"><i class="fa-solid fa-circle-minus" style="margin-right:3px;"></i>Cash Sale</span>` 
+          : `<span style="color:#94a3b8; font-size:11px;">No Photo</span>`);
+
+    return `
+      <tr>
+        <td style="white-space: nowrap;"><strong style="color: #0284c7; font-family: monospace; font-size: 13px;">#${txn.id}</strong></td>
+        <td style="white-space: nowrap;"><small style="color: #475569;">${formattedDate}</small></td>
+        <td><strong>${custName}</strong></td>
+        <td style="text-align: center; white-space: nowrap;">${payBadge}</td>
+        <td style="text-align: right; white-space: nowrap;"><strong style="color: #16a34a; font-size: 14px;">₱${parseFloat(txn.total || 0).toFixed(2)}</strong></td>
+        <td style="text-align: center; white-space: nowrap;">${proofDisplay}</td>
+        <td><small style="color: #334155;">${itemListStr}</small></td>
+        <td style="text-align: center; white-space: nowrap;">
+          <span class="badge" style="background:#dcfce7; color:#15803d; font-weight:700; font-size:11px; padding:3px 8px; border-radius:12px;">
+            <i class="fa-solid fa-circle-check" style="margin-right:4px;"></i>Completed
+          </span>
+        </td>
+        <td style="text-align: center; white-space: nowrap;">
+          <button onclick="reprintWalkinReceipt('${txn.id}')" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:4px 9px;" title="Reprint Official POS Receipt">
+            <i class="fa-solid fa-print"></i> Receipt
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function reprintWalkinReceipt(txnId) {
+  const cleanId = String(txnId).replace('WOBS-', '').replace('#', '');
+  const txn = transactionsData.find(t => String(t.id).replace('WOBS-', '').replace('#', '') === cleanId);
+  if (!txn) {
+    alert("Transaction not found.");
+    return;
+  }
+
+  let items = [];
+  try {
+    items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
+  } catch (e) {
+    items = [];
+  }
+
+  const isCash = txn.payment_method === 'Cash' || String(txn.gcash_ref).includes('CASH');
+
+  openAdminReceiptModal({
+    id: cleanId,
+    date: txn.date_created ? new Date(txn.date_created).toLocaleString() : new Date().toLocaleString(),
+    cashier: sessionStorage.getItem('wobs_admin_username') || 'Admin',
+    customerName: txn.customer_name || 'Walk-in Customer',
+    items: items,
+    total: parseFloat(txn.total || 0),
+    tendered: parseFloat(txn.total || 0),
+    change: 0,
+    paymentMethod: isCash ? 'Cash' : 'GCash'
+  });
 }
 
 // 2. Update Order Status and Refresh Data
@@ -487,12 +637,13 @@ async function updateOrderStatus(txnId, newStatus) {
 }
 
 function viewProofImage(txnId) {
-  const txn = transactionsData.find(t => t.id === txnId);
+  const cleanId = String(txnId).replace('WOBS-', '').replace('#', '');
+  const txn = transactionsData.find(t => String(t.id).replace('WOBS-', '').replace('#', '') === cleanId);
   if (txn && txn.payment_proof) {
     document.getElementById('proof-preview-img').src = txn.payment_proof;
     document.getElementById('modal-proof-preview').classList.remove('hidden');
   } else {
-    alert("No payment screenshot available.");
+    alert("No payment screenshot or receipt photo available.");
   }
 }
 
