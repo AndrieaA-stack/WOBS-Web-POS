@@ -79,8 +79,8 @@ function renderProductsTable() {
         <td><span style="color: ${p.stock < 10 ? '#f87171' : '#4ade80'}">${p.stock}</span></td>
         <td><small>${expiryStr}</small></td>
         <td style="text-align:right;">
-          <button onclick="editProduct('${p.id}')" class="btn btn-secondary btn-sm">Edit</button>
-          <button onclick="deleteProduct('${p.id}')" class="btn btn-danger btn-sm">Delete</button>
+        <button onclick="editProduct('${p.id}')" class="btn btn-sm" style="background-color: #0284c7; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Edit</button>
+        <button onclick="deleteProduct('${p.id}')" class="btn btn-sm" style="background-color: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Delete</button>
         </td>
       </tr>
     `;
