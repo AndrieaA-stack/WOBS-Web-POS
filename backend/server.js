@@ -315,9 +315,34 @@ app.put('/api/transactions/:id/status', async (req, res) => {
 
 // POST: Register New Customer
 app.post('/api/customer/register', async (req, res) => {
-  const { fullname, username, password, phone, city, barangay, street } = req.body;
+  const { fullname, username, password, phone, city, barangay, street, gpsDistance } = req.body;
   if (!fullname || !username || !password) {
     return res.status(400).json({ success: false, message: "Full name, username, and password are required." });
+  }
+
+  // 15km Delivery Radius Restriction (Personal Rider Base: Pandayan, Meycauayan, Bulacan)
+  const ALLOWED_CITIES_15KM = [
+    "meycauayan",
+    "marilao",
+    "valenzuela",
+    "obando",
+    "bocaue",
+    "santa maria",
+    "balagtas"
+  ];
+
+  if (!city || !ALLOWED_CITIES_15KM.includes(city.trim().toLowerCase())) {
+    return res.status(400).json({
+      success: false,
+      message: "Registration is restricted to addresses within a 15 km radius of Pandayan, Meycauayan, Bulacan (Personal Delivery Rider)."
+    });
+  }
+
+  if (gpsDistance !== undefined && gpsDistance !== null && parseFloat(gpsDistance) > 15.0) {
+    return res.status(400).json({
+      success: false,
+      message: `Your GPS distance is ${parseFloat(gpsDistance).toFixed(1)} km away. Personal delivery is only available within 15 km of Pandayan, Meycauayan.`
+    });
   }
 
   try {

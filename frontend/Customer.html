@@ -149,6 +149,25 @@
 
         <!-- REGISTRATION FORM -->
         <form id="form-cust-register" onsubmit="handleCustomerRegisterSubmit(event)" class="hidden">
+          <!-- 15KM DELIVERY RADIUS NOTICE BADGE -->
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <strong style="color: #065f46; display: flex; align-items: center; gap: 6px; font-size: 12px;">
+                <i class="fa-solid fa-motorcycle"></i> Personal Delivery Rider (15km Max)
+              </strong>
+              <span style="background: #059669; color: white; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">15km Radius</span>
+            </div>
+            <p style="margin: 0; color: #334155; line-height: 1.4;">
+              Account registration is exclusive to addresses within <strong>15km radius of Pandayan, Meycauayan, Bulacan</strong> serviced by our personal delivery rider.
+            </p>
+            <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+              <button type="button" onclick="verifyCustomerGpsDistance()" class="btn btn-sm" style="background: #0284c7; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-location-crosshairs"></i> Check My GPS Distance
+              </button>
+              <span id="cust-gps-status-badge" style="font-size: 11px; color: #64748b; font-weight: 600;"></span>
+            </div>
+          </div>
+
           <div class="form-group" style="margin-bottom: 12px;">
             <label for="cust-reg-fullname" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Full Name *</label>
             <input type="text" id="cust-reg-fullname" class="form-input" placeholder="e.g. Maria Santos" required>
@@ -169,12 +188,16 @@
           </div>
           <div class="form-row" style="display: flex; gap: 10px; margin-bottom: 12px;">
             <div class="form-group" style="flex: 1;">
-              <label for="cust-reg-city" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">City / Municipality *</label>
+              <label for="cust-reg-city" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">City / Municipality (Within 15km) *</label>
               <select id="cust-reg-city" class="form-select" onchange="updateRegisterBarangayOptions()" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                <option value="">Select City</option>
-                <option value="Marilao">Marilao</option>
-                <option value="Meycauayan">Meycauayan</option>
-                <option value="Bocaue">Bocaue</option>
+                <option value="">Select City / Municipality</option>
+                <option value="Meycauayan">Meycauayan (Store Base • 0–5 km)</option>
+                <option value="Marilao">Marilao (~3–7 km)</option>
+                <option value="Valenzuela">Valenzuela (~3–10 km)</option>
+                <option value="Obando">Obando (~4–8 km)</option>
+                <option value="Bocaue">Bocaue (~7–12 km)</option>
+                <option value="Santa Maria">Santa Maria (~9–14 km)</option>
+                <option value="Balagtas">Balagtas (~11–14 km)</option>
               </select>
             </div>
             <div class="form-group" style="flex: 1;">
@@ -294,6 +317,14 @@
           <p>Send GCash to: <strong>0917-123-4567</strong></p>
         </div>
 
+        <!-- Personal Rider Delivery Coverage Notice -->
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #334155;">
+          <strong style="color: #059669; display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+            <i class="fa-solid fa-motorcycle"></i> Personal Rider Delivery Area (Within 15km)
+          </strong>
+          <span>Deliveries are fulfilled exclusively within 15km of Pandayan, Meycauayan, Bulacan.</span>
+        </div>
+
         <!-- Full Name Field -->
         <div class="form-group">
           <label for="cust-name">Full Name *</label>
@@ -302,12 +333,16 @@
 
         <!-- City Dropdown -->
         <div class="form-group">
-          <label for="cust-city">City / Municipality *</label>
+          <label for="cust-city">City / Municipality (Within 15km) *</label>
           <select id="cust-city" class="form-select" onchange="updateBarangayOptions()" required>
             <option value="">Select City / Municipality</option>
-            <option value="Marilao">Marilao</option>
-            <option value="Meycauayan">Meycauayan</option>
-            <option value="Bocaue">Bocaue</option>
+            <option value="Meycauayan">Meycauayan (Store Base • 0–5 km)</option>
+            <option value="Marilao">Marilao (~3–7 km)</option>
+            <option value="Valenzuela">Valenzuela (~3–10 km)</option>
+            <option value="Obando">Obando (~4–8 km)</option>
+            <option value="Bocaue">Bocaue (~7–12 km)</option>
+            <option value="Santa Maria">Santa Maria (~9–14 km)</option>
+            <option value="Balagtas">Balagtas (~11–14 km)</option>
           </select>
         </div>
 

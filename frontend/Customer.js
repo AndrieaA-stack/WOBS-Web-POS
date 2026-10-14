@@ -21,20 +21,126 @@ var products = [];
 var cart = [];
 var selectedCategory = 'All';
 
-// Location Mapping
+// Store Origin: Pandayan, Meycauayan, Bulacan (Personal Delivery Rider Base)
+const STORE_ORIGIN = {
+  name: "Laura Sari-Sari Store",
+  barangay: "Pandayan",
+  city: "Meycauayan",
+  province: "Bulacan",
+  lat: 14.7355,
+  lng: 120.9575,
+  maxDeliveryRadiusKm: 15.0
+};
+
+let customerVerifiedGpsDistance = null;
+
+// Haversine distance formula to compute distance in km
+function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const toRad = deg => deg * (Math.PI / 180);
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// User-triggered GPS verification
+function verifyCustomerGpsDistance() {
+  const badge = document.getElementById('cust-gps-status-badge');
+  const msgEl = document.getElementById('cust-auth-msg');
+
+  if (!navigator.geolocation) {
+    if (badge) {
+      badge.style.color = '#eab308';
+      badge.textContent = 'GPS not supported on browser. Choose city below.';
+    }
+    return;
+  }
+
+  if (badge) {
+    badge.style.color = '#38bdf8';
+    badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking GPS distance...';
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
+      const distKm = calculateHaversineDistanceKm(STORE_ORIGIN.lat, STORE_ORIGIN.lng, userLat, userLng);
+      customerVerifiedGpsDistance = distKm;
+
+      if (distKm <= STORE_ORIGIN.maxDeliveryRadiusKm) {
+        if (badge) {
+          badge.style.color = '#10b981';
+          badge.innerHTML = `✅ ${distKm.toFixed(1)} km away (Within 15km Zone!)`;
+        }
+        if (msgEl) {
+          msgEl.className = 'scan-msg text-success';
+          msgEl.textContent = `✅ Location Verified: You are ${distKm.toFixed(1)} km from Pandayan, Meycauayan — eligible for personal rider delivery.`;
+        }
+      } else {
+        if (badge) {
+          badge.style.color = '#ef4444';
+          badge.innerHTML = `❌ ${distKm.toFixed(1)} km away (Exceeds 15km limit)`;
+        }
+        if (msgEl) {
+          msgEl.className = 'scan-msg text-danger';
+          msgEl.textContent = `❌ Your GPS distance (${distKm.toFixed(1)} km) is outside our 15 km personal delivery rider radius from Pandayan, Meycauayan.`;
+        }
+      }
+    },
+    (err) => {
+      console.warn("Geolocation denied or error:", err.message);
+      if (badge) {
+        badge.style.color = '#64748b';
+        badge.textContent = 'GPS optional. Select your registered City within 15km.';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+// Location Mapping: Exclusively municipalities & barangays within 15km radius of Pandayan, Meycauayan, Bulacan
 const LOCATION_DATA = {
-  "Marilao": [
-    "Abangan Norte", "Abangan Sur", "Ibayo", "Lias", 
-    "Poblacion 1st", "Poblacion 2nd", "Saog", "Tabing Ilog"
-  ],
   "Meycauayan": [
-    "Bahay Pare", "Bancal", "Calvario", "Camalig", 
-    "Hulo", "Iba", "Malhacan", "Poblacion", "Saluysoy", "Caingin", "Tugatog"
+    "Pandayan", "Bahay Pare", "Bancal", "Bangcal", "Calvario", "Camalig", 
+    "Hulo", "Iba", "Langka", "Lawa", "Libtong", "Liputan", "Malhacan", 
+    "Perez", "Poblacion", "Saint Francis", "Saluysoy", "Tugatog", "Caingin", "Ubihan", "Zamora"
+  ],
+  "Marilao": [
+    "Abangan Norte", "Abangan Sur", "Ibayo", "Lambakin", "Lias", "Loma de Gato", 
+    "Nagbalon", "Patubig", "Poblacion 1st", "Poblacion 2nd", "Prenza 1st", "Prenza 2nd", 
+    "Saog", "Santa Rosa 1st", "Santa Rosa 2nd", "Tabing Ilog"
+  ],
+  "Valenzuela": [
+    "Arkong Bato", "Balangkas", "Bignay", "Bisig", "Canumay East", "Canumay West", 
+    "Coloong", "Dalandanan", "Lawang Bato", "Lingunan", "Mabolo", "Malanday", 
+    "Malinta", "Mapulang Lupa", "Palasan", "Parada", "Pariancillo Villa", 
+    "Paso de Blas", "Pasolo", "Poblacion", "Polo", "Punturin", "Rincon", 
+    "Tagalag", "Veinte Reales", "Wawang Pulo"
+  ],
+  "Obando": [
+    "Binuangan", "Catanghalan", "Hulo", "Lawa", "Paco", "Pag-asa", 
+    "Paliwas", "Panghulo", "Salambao", "San Pascual", "Tawiran"
   ],
   "Bocaue": [
     "Antipona", "Bagumbayan", "Bambang", "Batia", "Biñang 1st", "Biñang 2nd", 
     "Bolacan", "Bundukan", "Bunlo", "Caingin", "Duhat", "Igulot", "Lolomboy", 
     "Poblacion", "Sulucan", "Taal", "Tambobong", "Turo", "Wakas"
+  ],
+  "Santa Maria": [
+    "Bagbaguin", "Balasing", "Buenavista", "Bulac", "Camangyanan", "Catmon", 
+    "Caypombo", "Caysio", "Guyong", "Lalakhan", "Mag-asawang Sapa", "Mahabang Parang", 
+    "Manggahan", "Parada", "Poblacion", "Pulong Buhangin", "San Gabriel", 
+    "San Jose Patag", "San Vicente", "Santa Clara", "Santa Cruz", "Silangan", "Tumana"
+  ],
+  "Balagtas": [
+    "Borol 1st", "Borol 2nd", "Dalig", "Longos", "Panginay", "Pulong Gubat", 
+    "San Juan", "Santol", "Wawa"
   ]
 };
 
@@ -233,11 +339,37 @@ async function handleCustomerRegisterSubmit(e) {
     return;
   }
 
+  // Validate 15km Delivery Radius Restriction
+  if (!LOCATION_DATA[city]) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = '❌ Registration is restricted to addresses within 15km of Pandayan, Meycauayan, Bulacan.';
+    }
+    return;
+  }
+
+  if (customerVerifiedGpsDistance !== null && customerVerifiedGpsDistance > STORE_ORIGIN.maxDeliveryRadiusKm) {
+    if (msgEl) {
+      msgEl.className = 'scan-msg text-danger';
+      msgEl.textContent = `❌ Your GPS distance (${customerVerifiedGpsDistance.toFixed(1)} km) exceeds our 15 km delivery rider radius from Pandayan, Meycauayan.`;
+    }
+    return;
+  }
+
   try {
     const res = await fetch(`${API_URL}/customer/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullname, username, password, phone, city, barangay, street })
+      body: JSON.stringify({ 
+        fullname, 
+        username, 
+        password, 
+        phone, 
+        city, 
+        barangay, 
+        street,
+        gpsDistance: customerVerifiedGpsDistance 
+      })
     });
     const data = await res.json();
 
