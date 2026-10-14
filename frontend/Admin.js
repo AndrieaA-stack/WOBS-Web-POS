@@ -725,46 +725,14 @@ async function approveAdmin(id, action) {
   }
 }
 
-// Timeframe Switcher & State
+// Timeframe State & Bar Chart Instance
 let selectedAnalyticsTimeframe = 'monthly';
-let channelDonutChartInstance = null;
 let channelTrendChartInstance = null;
-let currentChannelChartView = 'donut';
-
-function switchChannelChartView(view) {
-  currentChannelChartView = view;
-  const donutContainer = document.getElementById('channel-donut-container');
-  const trendContainer = document.getElementById('channel-trend-container');
-  const btnDonut = document.getElementById('btn-chart-view-donut');
-  const btnTrend = document.getElementById('btn-chart-view-trend');
-  const caption = document.getElementById('chart-sub-caption');
-
-  if (btnDonut) btnDonut.classList.toggle('active', view === 'donut');
-  if (btnTrend) btnTrend.classList.toggle('active', view === 'trend');
-
-  if (view === 'donut') {
-    if (donutContainer) donutContainer.classList.remove('hidden');
-    if (trendContainer) trendContainer.classList.add('hidden');
-    if (caption) caption.textContent = "Interactive Donut Chart: Compares total sales share (%) between Walk-in POS and Online Orders.";
-    if (channelDonutChartInstance) channelDonutChartInstance.resize();
-  } else {
-    if (donutContainer) donutContainer.classList.add('hidden');
-    if (trendContainer) trendContainer.classList.remove('hidden');
-    if (caption) caption.textContent = "Timeline Bar Chart: Compares sales (₱) between Walk-in POS and Online Orders across each time period.";
-    if (channelTrendChartInstance) channelTrendChartInstance.resize();
-  }
-}
 
 function changeAnalyticsTimeframe(timeframe) {
   selectedAnalyticsTimeframe = timeframe;
 
-  // Sync dropdown
-  const selectEl = document.getElementById('sales-timeframe-select');
-  if (selectEl && selectEl.value !== timeframe) {
-    selectEl.value = timeframe;
-  }
-
-  // Sync button pills
+  // Sync button pills (Daily, Weekly, Monthly, Yearly)
   document.querySelectorAll('.analytics-pill-btn[data-timeframe]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
   });
@@ -782,10 +750,8 @@ async function renderAnalytics() {
   await fetchProducts();
   await fetchTransactions();
 
-  // Read current timeframe from select or global variable
-  const selectEl = document.getElementById('sales-timeframe-select');
-  const timeframe = selectEl ? selectEl.value : selectedAnalyticsTimeframe;
-  selectedAnalyticsTimeframe = timeframe;
+  // Read current timeframe from global variable
+  const timeframe = selectedAnalyticsTimeframe || 'monthly';
 
   // Sync pill buttons
   document.querySelectorAll('.analytics-pill-btn[data-timeframe]').forEach(btn => {
@@ -1275,10 +1241,7 @@ function renderChannelComparison(data) {
     }
   }
 
-  // 4. Render Chart.js Donut Chart
-  renderDonutChart(walkinSales, onlineSales, totalSales);
-
-  // 5. Render Chart.js Daily Sales Trend Bar Chart
+  // 4. Render Chart.js Daily Sales Trend Bar Graph
   renderTrendChart({
     timeframe,
     periodTxns,
@@ -1286,85 +1249,6 @@ function renderChannelComparison(data) {
     currentYear,
     currentMonth,
     targetDailyDateStr
-  });
-}
-
-// 5. Render Donut Chart for Walk-in vs Online Share
-function renderDonutChart(walkinSales, onlineSales, totalSales) {
-  const canvas = document.getElementById('channel-donut-chart');
-  if (!canvas) return;
-
-  if (typeof Chart === 'undefined') {
-    canvas.parentElement.innerHTML = `
-      <div style="text-align: center; color: #94a3b8; padding: 20px;">
-        <i class="fa-solid fa-chart-pie" style="font-size: 32px; color: #38bdf8; margin-bottom: 8px;"></i>
-        <div>Walk-in POS: <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
-        <div>Online Orders: <strong>₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
-      </div>
-    `;
-    return;
-  }
-
-  if (channelDonutChartInstance) {
-    channelDonutChartInstance.destroy();
-    channelDonutChartInstance = null;
-  }
-
-  const hasData = (walkinSales + onlineSales) > 0;
-  const chartData = hasData ? [walkinSales, onlineSales] : [1, 1];
-  const bgColors = hasData 
-    ? ['#10b981', '#0284c7'] 
-    : ['rgba(51, 65, 85, 0.6)', 'rgba(51, 65, 85, 0.3)'];
-  const hoverColors = hasData 
-    ? ['#059669', '#0369a1'] 
-    : ['#334155', '#1e293b'];
-
-  channelDonutChartInstance = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels: ['Walk-in POS Sales', 'Customer Online Orders'],
-      datasets: [{
-        data: chartData,
-        backgroundColor: bgColors,
-        hoverBackgroundColor: hoverColors,
-        borderColor: '#0f172a',
-        borderWidth: 3,
-        hoverOffset: 6
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: '#f8fafc',
-            font: { size: 12, weight: '600' },
-            padding: 14,
-            usePointStyle: true,
-            pointStyle: 'circle'
-          }
-        },
-        tooltip: {
-          enabled: hasData,
-          backgroundColor: '#0f172a',
-          titleColor: '#38bdf8',
-          bodyColor: '#f8fafc',
-          borderColor: '#334155',
-          borderWidth: 1,
-          padding: 12,
-          callbacks: {
-            label: function(ctx) {
-              const val = ctx.parsed;
-              const pct = totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : '0';
-              return ` ${ctx.label}: ₱${Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pct}%)`;
-            }
-          }
-        }
-      }
-    }
   });
 }
 
