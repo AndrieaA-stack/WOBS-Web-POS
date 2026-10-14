@@ -11,9 +11,23 @@ const isLocalhost = (
   window.location.protocol === "file:"
 );
 
-const API_URL = isLocalhost
+let API_URL = isLocalhost
   ? `http://${(window.location.hostname && !window.location.hostname.includes('file')) ? window.location.hostname : 'localhost'}:5000/api` 
   : `${RENDER_BACKEND_URL}/api`;
+
+async function fetchWithFallback(endpoint, options) {
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, options);
+    return res;
+  } catch (err) {
+    if (API_URL !== `${RENDER_BACKEND_URL}/api`) {
+      console.warn(`Local API (${API_URL}) failed, falling back to Render backend...`);
+      API_URL = `${RENDER_BACKEND_URL}/api`;
+      return await fetch(`${API_URL}${endpoint}`, options);
+    }
+    throw err;
+  }
+}
 
 let productsData = [];
 let transactionsData = [];
@@ -70,7 +84,7 @@ function switchAdminTab(tabName) {
 
 async function fetchProducts() {
   try {
-    const res = await fetch(`${API_URL}/products`);
+    const res = await fetchWithFallback(`/products`);
     productsData = await res.json();
     renderProductsTable();
     if (typeof renderAdminPosCatalog === 'function') {
@@ -366,7 +380,7 @@ async function deleteProduct(id) {
 
 async function fetchTransactions() {
   try {
-    const res = await fetch(`${API_URL}/transactions`);
+    const res = await fetchWithFallback(`/transactions`);
     let data = await res.json();
     
     // Check local storage status overrides
@@ -713,6 +727,33 @@ async function approveAdmin(id, action) {
 
 // Timeframe Switcher & State
 let selectedAnalyticsTimeframe = 'monthly';
+let channelDonutChartInstance = null;
+let channelTrendChartInstance = null;
+let currentChannelChartView = 'donut';
+
+function switchChannelChartView(view) {
+  currentChannelChartView = view;
+  const donutContainer = document.getElementById('channel-donut-container');
+  const trendContainer = document.getElementById('channel-trend-container');
+  const btnDonut = document.getElementById('btn-chart-view-donut');
+  const btnTrend = document.getElementById('btn-chart-view-trend');
+  const caption = document.getElementById('chart-sub-caption');
+
+  if (btnDonut) btnDonut.classList.toggle('active', view === 'donut');
+  if (btnTrend) btnTrend.classList.toggle('active', view === 'trend');
+
+  if (view === 'donut') {
+    if (donutContainer) donutContainer.classList.remove('hidden');
+    if (trendContainer) trendContainer.classList.add('hidden');
+    if (caption) caption.textContent = "Interactive Donut Chart: Compares total sales share (%) between Walk-in POS and Online Orders.";
+    if (channelDonutChartInstance) channelDonutChartInstance.resize();
+  } else {
+    if (donutContainer) donutContainer.classList.add('hidden');
+    if (trendContainer) trendContainer.classList.remove('hidden');
+    if (caption) caption.textContent = "Timeline Bar Chart: Compares sales (₱) between Walk-in POS and Online Orders across each time period.";
+    if (channelTrendChartInstance) channelTrendChartInstance.resize();
+  }
+}
 
 function changeAnalyticsTimeframe(timeframe) {
   selectedAnalyticsTimeframe = timeframe;
@@ -724,14 +765,19 @@ function changeAnalyticsTimeframe(timeframe) {
   }
 
   // Sync button pills
-  document.querySelectorAll('.analytics-pill-btn').forEach(btn => {
+  document.querySelectorAll('.analytics-pill-btn[data-timeframe]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
   });
+
+  const dailyPickerContainer = document.getElementById('analytics-daily-picker-container');
+  if (dailyPickerContainer) {
+    dailyPickerContainer.classList.toggle('hidden', timeframe !== 'daily');
+  }
 
   renderAnalytics();
 }
 
-// 3. Calculate Sales & Products Sold for Chosen Timeframe (Weekly, Monthly, Yearly)
+// 3. Calculate Sales & Products Sold for Chosen Timeframe (Daily, Weekly, Monthly, Yearly)
 async function renderAnalytics() {
   await fetchProducts();
   await fetchTransactions();
@@ -742,7 +788,7 @@ async function renderAnalytics() {
   selectedAnalyticsTimeframe = timeframe;
 
   // Sync pill buttons
-  document.querySelectorAll('.analytics-pill-btn').forEach(btn => {
+  document.querySelectorAll('.analytics-pill-btn[data-timeframe]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.timeframe === timeframe);
   });
 
@@ -766,35 +812,81 @@ async function renderAnalytics() {
   let titleLabelText = "";
   let rangeLabelText = "";
   let badgeText = "";
+  let targetDailyDateStr = "";
 
-  if (timeframe === 'weekly') {
-    // Last 7 days anchored to refDate in currentYear
-    const sevenDaysAgo = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - 6, 0, 0, 0, 0);
-    filterFn = (txnDate) => txnDate >= sevenDaysAgo && txnDate <= refDate;
+  const dailyPickerContainer = document.getElementById('analytics-daily-picker-container');
+  const dailyDateInput = document.getElementById('analytics-daily-date');
 
-    periodLabelText = "Weekly Performance";
-    titleLabelText = "Total Weekly Sales";
-    const startFormatted = sevenDaysAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const endFormatted = refDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    rangeLabelText = `(${startFormatted} – ${endFormatted})`;
-    badgeText = "Last 7 Days";
-  } else if (timeframe === 'yearly') {
-    // Current Calendar Year: 2026 by default
-    filterFn = (txnDate) => txnDate.getFullYear() === currentYear;
+  if (timeframe === 'daily') {
+    if (dailyPickerContainer) dailyPickerContainer.classList.remove('hidden');
 
-    periodLabelText = "Yearly Performance";
-    titleLabelText = `Total Yearly Sales (${currentYear})`;
-    rangeLabelText = `(Jan 1 – Dec 31, ${currentYear})`;
-    badgeText = `Year ${currentYear}`;
+    let targetYear = refDate.getFullYear();
+    let targetMonth = refDate.getMonth();
+    let targetDay = refDate.getDate();
+
+    if (dailyDateInput && dailyDateInput.value) {
+      const parts = dailyDateInput.value.split('-');
+      if (parts.length === 3) {
+        targetYear = parseInt(parts[0], 10);
+        targetMonth = parseInt(parts[1], 10) - 1;
+        targetDay = parseInt(parts[2], 10);
+      }
+    } else if (dailyDateInput) {
+      const yStr = String(targetYear);
+      const mStr = String(targetMonth + 1).padStart(2, '0');
+      const dStr = String(targetDay).padStart(2, '0');
+      dailyDateInput.value = `${yStr}-${mStr}-${dStr}`;
+    }
+
+    targetDailyDateStr = dailyDateInput ? dailyDateInput.value : '';
+
+    filterFn = (txnDate) => {
+      return txnDate.getFullYear() === targetYear &&
+             txnDate.getMonth() === targetMonth &&
+             txnDate.getDate() === targetDay;
+    };
+
+    const isToday = (targetYear === now.getFullYear() && targetMonth === now.getMonth() && targetDay === now.getDate());
+    const displayDateObj = new Date(targetYear, targetMonth, targetDay);
+    const dateFormatted = displayDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const shortFormatted = displayDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    periodLabelText = "Daily Performance";
+    titleLabelText = isToday ? `Today's Daily Sales (${dateFormatted})` : `Daily Sales (${dateFormatted})`;
+    rangeLabelText = isToday ? `(Today – ${dateFormatted})` : `(${dateFormatted})`;
+    badgeText = isToday ? `Today (${shortFormatted})` : shortFormatted;
   } else {
-    // Default: 'monthly' (Current Calendar Month in 2026 by default)
-    filterFn = (txnDate) => txnDate.getFullYear() === currentYear && txnDate.getMonth() === currentMonth;
+    if (dailyPickerContainer) dailyPickerContainer.classList.add('hidden');
 
-    periodLabelText = "Monthly Performance";
-    titleLabelText = `Total Monthly Sales (${monthNames[currentMonth]} ${currentYear})`;
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    rangeLabelText = `(${monthNames[currentMonth]} 1 – ${lastDayOfMonth}, ${currentYear})`;
-    badgeText = `${monthNames[currentMonth]} ${currentYear}`;
+    if (timeframe === 'weekly') {
+      // Last 7 days anchored to refDate in currentYear
+      const sevenDaysAgo = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - 6, 0, 0, 0, 0);
+      filterFn = (txnDate) => txnDate >= sevenDaysAgo && txnDate <= refDate;
+
+      periodLabelText = "Weekly Performance";
+      titleLabelText = "Total Weekly Sales";
+      const startFormatted = sevenDaysAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endFormatted = refDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      rangeLabelText = `(${startFormatted} – ${endFormatted})`;
+      badgeText = "Last 7 Days";
+    } else if (timeframe === 'yearly') {
+      // Current Calendar Year: 2026 by default
+      filterFn = (txnDate) => txnDate.getFullYear() === currentYear;
+
+      periodLabelText = "Yearly Performance";
+      titleLabelText = `Total Yearly Sales (${currentYear})`;
+      rangeLabelText = `(Jan 1 – Dec 31, ${currentYear})`;
+      badgeText = `Year ${currentYear}`;
+    } else {
+      // Default: 'monthly' (Current Calendar Month in 2026 by default)
+      filterFn = (txnDate) => txnDate.getFullYear() === currentYear && txnDate.getMonth() === currentMonth;
+
+      periodLabelText = "Monthly Performance";
+      titleLabelText = `Total Monthly Sales (${monthNames[currentMonth]} ${currentYear})`;
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      rangeLabelText = `(${monthNames[currentMonth]} 1 – ${lastDayOfMonth}, ${currentYear})`;
+      badgeText = `${monthNames[currentMonth]} ${currentYear}`;
+    }
   }
 
   // Update Dynamic Header Text & Badges
@@ -818,6 +910,20 @@ async function renderAnalytics() {
   let totalUnits = 0;
   const productSalesCount = {};
 
+  let walkinSales = 0;
+  let walkinOrders = 0;
+  let walkinUnits = 0;
+
+  let onlineSales = 0;
+  let onlineOrders = 0;
+  let onlineUnits = 0;
+
+  // Track today's daily sales across all data for the live chip
+  let todaySalesTotal = 0;
+  let todayOrdersTotal = 0;
+
+  const periodTxns = [];
+
   productsData.forEach(p => {
     productSalesCount[p.name] = 0;
   });
@@ -829,11 +935,20 @@ async function renderAnalytics() {
     const txnDate = txn.date_created ? new Date(txn.date_created) : null;
     const statusUpper = String(txn.status || 'Pending').trim().toUpperCase();
 
-    // Accumulate sales and items exclusively for fulfilled/accepted orders in chosen period
+    // Accumulate sales and items exclusively for fulfilled/accepted orders
     if (VALID_SALES_STATUSES.includes(statusUpper) && txnDate && !isNaN(txnDate.getTime())) {
+      // Calculate live today's sales
+      if (txnDate.getFullYear() === now.getFullYear() && txnDate.getMonth() === now.getMonth() && txnDate.getDate() === now.getDate()) {
+        todaySalesTotal += parseFloat(txn.total || 0);
+        todayOrdersTotal++;
+      }
+
+      // Check active timeframe filter
       if (filterFn(txnDate)) {
-        totalSales += parseFloat(txn.total || 0);
+        const txnTotal = parseFloat(txn.total || 0);
+        totalSales += txnTotal;
         orderCount++;
+        periodTxns.push(txn);
 
         let items = [];
         try {
@@ -842,14 +957,36 @@ async function renderAnalytics() {
           console.warn("Error parsing items for transaction:", txn.id, e);
         }
 
+        let currentTxnUnits = 0;
         items.forEach(i => {
           const qty = parseInt(i.qty || 1, 10);
           productSalesCount[i.name] = (productSalesCount[i.name] || 0) + qty;
           totalUnits += qty;
+          currentTxnUnits += qty;
         });
+
+        if (isWalkInTransaction(txn)) {
+          walkinSales += txnTotal;
+          walkinOrders++;
+          walkinUnits += currentTxnUnits;
+        } else {
+          onlineSales += txnTotal;
+          onlineOrders++;
+          onlineUnits += currentTxnUnits;
+        }
       }
     }
   });
+
+  // Update Live Today's Quick Sales Chip
+  const todaySalesEl = document.getElementById('today-quick-sales');
+  if (todaySalesEl) {
+    todaySalesEl.textContent = '₱' + todaySalesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const todayOrdersEl = document.getElementById('today-quick-orders');
+  if (todayOrdersEl) {
+    todayOrdersEl.textContent = `(${todayOrdersTotal} ${todayOrdersTotal === 1 ? 'sale' : 'sales'})`;
+  }
 
   // Display Total Revenue
   const salesEl = document.getElementById('monthly-sales-amount');
@@ -857,7 +994,29 @@ async function renderAnalytics() {
     salesEl.textContent = '₱' + totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Display Orders Count
+  // Display Walk-in POS Sales KPI
+  const walkinRevEl = document.getElementById('analytics-walkin-revenue');
+  if (walkinRevEl) {
+    walkinRevEl.textContent = '₱' + walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const walkinSubEl = document.getElementById('analytics-walkin-orders-count');
+  if (walkinSubEl) {
+    const wPct = totalSales > 0 ? ((walkinSales / totalSales) * 100).toFixed(1) : 0;
+    walkinSubEl.textContent = `${walkinOrders} ${walkinOrders === 1 ? 'sale' : 'sales'} (${wPct}%)`;
+  }
+
+  // Display Online Customer Orders KPI
+  const onlineRevEl = document.getElementById('analytics-online-revenue');
+  if (onlineRevEl) {
+    onlineRevEl.textContent = '₱' + onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const onlineSubEl = document.getElementById('analytics-online-orders-count');
+  if (onlineSubEl) {
+    const oPct = totalSales > 0 ? ((onlineSales / totalSales) * 100).toFixed(1) : 0;
+    onlineSubEl.textContent = `${onlineOrders} ${onlineOrders === 1 ? 'order' : 'orders'} (${oPct}%)`;
+  }
+
+  // Display Total Orders Count
   const ordersEl = document.getElementById('analytics-orders-count');
   if (ordersEl) {
     ordersEl.textContent = orderCount;
@@ -868,6 +1027,23 @@ async function renderAnalytics() {
   if (unitsEl) {
     unitsEl.textContent = `${totalUnits} ${totalUnits === 1 ? 'unit' : 'units'}`;
   }
+
+  // Render Walk-in vs Online Customer Orders Comparative Section & Charts
+  renderChannelComparison({
+    walkinSales,
+    onlineSales,
+    walkinOrders,
+    onlineOrders,
+    walkinUnits,
+    onlineUnits,
+    totalSales,
+    periodTxns,
+    timeframe,
+    refDate,
+    currentYear,
+    currentMonth,
+    targetDailyDateStr
+  });
 
   // Rank products by units sold
   const sortedProducts = Object.keys(productSalesCount).map(name => ({
@@ -912,6 +1088,450 @@ async function renderAnalytics() {
       `).join('');
     }
   }
+}
+
+// 4. Render Walk-in vs. Online Orders Comparison & Charts
+function renderChannelComparison(data) {
+  const {
+    walkinSales,
+    onlineSales,
+    walkinOrders,
+    onlineOrders,
+    walkinUnits,
+    onlineUnits,
+    totalSales,
+    periodTxns,
+    timeframe,
+    refDate,
+    currentYear,
+    currentMonth,
+    targetDailyDateStr
+  } = data;
+
+  const walkinShare = totalSales > 0 ? (walkinSales / totalSales) * 100 : 0;
+  const onlineShare = totalSales > 0 ? (onlineSales / totalSales) * 100 : 0;
+  const walkinAvg = walkinOrders > 0 ? walkinSales / walkinOrders : 0;
+  const onlineAvg = onlineOrders > 0 ? onlineSales / onlineOrders : 0;
+  const diff = Math.abs(walkinSales - onlineSales);
+
+  // 1. Update Distribution Progress Bar
+  const distWalkinLabel = document.getElementById('dist-bar-walkin-label');
+  const distOnlineLabel = document.getElementById('dist-bar-online-label');
+  const distWalkinFill = document.getElementById('dist-bar-walkin-fill');
+  const distOnlineFill = document.getElementById('dist-bar-online-fill');
+
+  if (distWalkinLabel) {
+    distWalkinLabel.textContent = `${walkinShare.toFixed(1)}% (₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+  }
+  if (distOnlineLabel) {
+    distOnlineLabel.textContent = `${onlineShare.toFixed(1)}% (₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+  }
+  if (distWalkinFill && distOnlineFill) {
+    if (totalSales > 0) {
+      distWalkinFill.style.width = `${walkinShare}%`;
+      distOnlineFill.style.width = `${onlineShare}%`;
+    } else {
+      distWalkinFill.style.width = '50%';
+      distOnlineFill.style.width = '50%';
+    }
+  }
+
+  // 2. Update Channel Breakdown Cards
+  const elCardWalkinRev = document.getElementById('card-walkin-revenue');
+  const elCardWalkinShare = document.getElementById('card-walkin-share');
+  const elCardWalkinOrders = document.getElementById('card-walkin-orders');
+  const elCardWalkinUnits = document.getElementById('card-walkin-units');
+  const elCardWalkinAvg = document.getElementById('card-walkin-avg');
+
+  if (elCardWalkinRev) elCardWalkinRev.textContent = '₱' + walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (elCardWalkinShare) elCardWalkinShare.textContent = `(${walkinShare.toFixed(1)}% of total sales)`;
+  if (elCardWalkinOrders) elCardWalkinOrders.textContent = walkinOrders;
+  if (elCardWalkinUnits) elCardWalkinUnits.textContent = `${walkinUnits} ${walkinUnits === 1 ? 'unit' : 'units'}`;
+  if (elCardWalkinAvg) elCardWalkinAvg.textContent = '₱' + walkinAvg.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const elCardOnlineRev = document.getElementById('card-online-revenue');
+  const elCardOnlineShare = document.getElementById('card-online-share');
+  const elCardOnlineOrders = document.getElementById('card-online-orders');
+  const elCardOnlineUnits = document.getElementById('card-online-units');
+  const elCardOnlineAvg = document.getElementById('card-online-avg');
+
+  if (elCardOnlineRev) elCardOnlineRev.textContent = '₱' + onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (elCardOnlineShare) elCardOnlineShare.textContent = `(${onlineShare.toFixed(1)}% of total sales)`;
+  if (elCardOnlineOrders) elCardOnlineOrders.textContent = onlineOrders;
+  if (elCardOnlineUnits) elCardOnlineUnits.textContent = `${onlineUnits} ${onlineUnits === 1 ? 'unit' : 'units'}`;
+  if (elCardOnlineAvg) elCardOnlineAvg.textContent = '₱' + onlineAvg.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // 3. Update Winner / Leader Callout Banner and Status Tags
+  const winnerBanner = document.getElementById('channel-winner-banner');
+  const walkinTag = document.getElementById('walkin-leader-tag');
+  const onlineTag = document.getElementById('online-leader-tag');
+
+  if (winnerBanner) {
+    winnerBanner.className = 'channel-winner-banner';
+    if (totalSales === 0) {
+      winnerBanner.classList.add('winner-none');
+      winnerBanner.innerHTML = `
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #94a3b8; flex-shrink: 0;">
+          <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div>
+          <strong style="color: #cbd5e1; font-size: 14px;">No Sales Recorded For This Period</strong>
+          <div style="font-size: 12px; color: #94a3b8;">There are no completed walk-in transactions or accepted customer orders in this timeframe.</div>
+        </div>
+      `;
+      if (walkinTag) {
+        walkinTag.className = 'badge';
+        walkinTag.style.background = '#334155';
+        walkinTag.style.color = '#94a3b8';
+        walkinTag.textContent = 'No Sales';
+      }
+      if (onlineTag) {
+        onlineTag.className = 'badge';
+        onlineTag.style.background = '#334155';
+        onlineTag.style.color = '#94a3b8';
+        onlineTag.textContent = 'No Sales';
+      }
+    } else if (walkinSales > onlineSales) {
+      winnerBanner.classList.add('winner-walkin');
+      winnerBanner.innerHTML = `
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(16, 185, 129, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #34d399; flex-shrink: 0; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 2px;">
+            🏆 Walk-in POS Has More Sales! (+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+          </div>
+          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+            Walk-in POS brought in <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${walkinShare.toFixed(1)}%)</strong>, leading Customer Online Orders (₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, ${onlineShare.toFixed(1)}%) by <strong>+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>.
+          </div>
+        </div>
+      `;
+      if (walkinTag) {
+        walkinTag.className = 'badge';
+        walkinTag.style.background = '#065f46';
+        walkinTag.style.color = '#6ee7b7';
+        walkinTag.innerHTML = '<i class="fa-solid fa-crown" style="margin-right: 4px;"></i>Leading Channel';
+      }
+      if (onlineTag) {
+        onlineTag.className = 'badge';
+        onlineTag.style.background = '#1e293b';
+        onlineTag.style.color = '#94a3b8';
+        onlineTag.textContent = 'Trailing Channel';
+      }
+    } else if (onlineSales > walkinSales) {
+      winnerBanner.classList.add('winner-online');
+      winnerBanner.innerHTML = `
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(2, 132, 199, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #38bdf8; flex-shrink: 0; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 14px; font-weight: 700; color: #38bdf8; margin-bottom: 2px;">
+            🏆 Customer Online Orders Has More Sales! (+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+          </div>
+          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+            Customer Online Orders brought in <strong>₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${onlineShare.toFixed(1)}%)</strong>, leading Walk-in POS (₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, ${walkinShare.toFixed(1)}%) by <strong>+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>.
+          </div>
+        </div>
+      `;
+      if (onlineTag) {
+        onlineTag.className = 'badge';
+        onlineTag.style.background = '#0c4a6e';
+        onlineTag.style.color = '#7dd3fc';
+        onlineTag.innerHTML = '<i class="fa-solid fa-crown" style="margin-right: 4px;"></i>Leading Channel';
+      }
+      if (walkinTag) {
+        walkinTag.className = 'badge';
+        walkinTag.style.background = '#1e293b';
+        walkinTag.style.color = '#94a3b8';
+        walkinTag.textContent = 'Trailing Channel';
+      }
+    } else {
+      winnerBanner.classList.add('winner-tied');
+      winnerBanner.innerHTML = `
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(168, 85, 247, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #c084fc; flex-shrink: 0;">
+          <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div style="flex: 1;">
+          <div style="font-size: 14px; font-weight: 700; color: #c084fc; margin-bottom: 2px;">
+            ⚖️ Walk-in POS and Customer Online Orders Are Tied!
+          </div>
+          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+            Both channels produced identical sales of <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> each (50% / 50% split).
+          </div>
+        </div>
+      `;
+      if (walkinTag) {
+        walkinTag.className = 'badge';
+        walkinTag.style.background = '#581c87';
+        walkinTag.style.color = '#e9d5ff';
+        walkinTag.textContent = 'Tied (50%)';
+      }
+      if (onlineTag) {
+        onlineTag.className = 'badge';
+        onlineTag.style.background = '#581c87';
+        onlineTag.style.color = '#e9d5ff';
+        onlineTag.textContent = 'Tied (50%)';
+      }
+    }
+  }
+
+  // 4. Render Chart.js Donut Chart
+  renderDonutChart(walkinSales, onlineSales, totalSales);
+
+  // 5. Render Chart.js Daily Sales Trend Bar Chart
+  renderTrendChart({
+    timeframe,
+    periodTxns,
+    refDate,
+    currentYear,
+    currentMonth,
+    targetDailyDateStr
+  });
+}
+
+// 5. Render Donut Chart for Walk-in vs Online Share
+function renderDonutChart(walkinSales, onlineSales, totalSales) {
+  const canvas = document.getElementById('channel-donut-chart');
+  if (!canvas) return;
+
+  if (typeof Chart === 'undefined') {
+    canvas.parentElement.innerHTML = `
+      <div style="text-align: center; color: #94a3b8; padding: 20px;">
+        <i class="fa-solid fa-chart-pie" style="font-size: 32px; color: #38bdf8; margin-bottom: 8px;"></i>
+        <div>Walk-in POS: <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
+        <div>Online Orders: <strong>₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
+      </div>
+    `;
+    return;
+  }
+
+  if (channelDonutChartInstance) {
+    channelDonutChartInstance.destroy();
+    channelDonutChartInstance = null;
+  }
+
+  const hasData = (walkinSales + onlineSales) > 0;
+  const chartData = hasData ? [walkinSales, onlineSales] : [1, 1];
+  const bgColors = hasData 
+    ? ['#10b981', '#0284c7'] 
+    : ['rgba(51, 65, 85, 0.6)', 'rgba(51, 65, 85, 0.3)'];
+  const hoverColors = hasData 
+    ? ['#059669', '#0369a1'] 
+    : ['#334155', '#1e293b'];
+
+  channelDonutChartInstance = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['Walk-in POS Sales', 'Customer Online Orders'],
+      datasets: [{
+        data: chartData,
+        backgroundColor: bgColors,
+        hoverBackgroundColor: hoverColors,
+        borderColor: '#0f172a',
+        borderWidth: 3,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#f8fafc',
+            font: { size: 12, weight: '600' },
+            padding: 14,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          enabled: hasData,
+          backgroundColor: '#0f172a',
+          titleColor: '#38bdf8',
+          bodyColor: '#f8fafc',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: function(ctx) {
+              const val = ctx.parsed;
+              const pct = totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : '0';
+              return ` ${ctx.label}: ₱${Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 6. Render Trend Bar Chart for Timeline/Daily Breakdown
+function renderTrendChart(config) {
+  const canvas = document.getElementById('channel-trend-chart');
+  if (!canvas) return;
+
+  if (typeof Chart === 'undefined') {
+    return;
+  }
+
+  if (channelTrendChartInstance) {
+    channelTrendChartInstance.destroy();
+    channelTrendChartInstance = null;
+  }
+
+  const { timeframe, periodTxns, refDate, currentYear, currentMonth } = config;
+
+  let labels = [];
+  let walkinVals = [];
+  let onlineVals = [];
+
+  if (timeframe === 'weekly') {
+    // 7 days ending on refDate
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - i);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+      labels.push(dayLabel);
+
+      let wSum = 0;
+      let oSum = 0;
+      periodTxns.forEach(t => {
+        const td = new Date(t.date_created);
+        if (td.getFullYear() === d.getFullYear() && td.getMonth() === d.getMonth() && td.getDate() === d.getDate()) {
+          const amt = parseFloat(t.total || 0);
+          if (isWalkInTransaction(t)) wSum += amt;
+          else oSum += amt;
+        }
+      });
+      walkinVals.push(wSum);
+      onlineVals.push(oSum);
+    }
+  } else if (timeframe === 'yearly') {
+    // 12 Months
+    const monthShorts = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    labels = [...monthShorts];
+    for (let m = 0; m < 12; m++) {
+      let wSum = 0;
+      let oSum = 0;
+      periodTxns.forEach(t => {
+        const td = new Date(t.date_created);
+        if (td.getFullYear() === currentYear && td.getMonth() === m) {
+          const amt = parseFloat(t.total || 0);
+          if (isWalkInTransaction(t)) wSum += amt;
+          else oSum += amt;
+        }
+      });
+      walkinVals.push(wSum);
+      onlineVals.push(oSum);
+    }
+  } else if (timeframe === 'daily') {
+    // 4 Day Time Slots for the daily timeframe
+    labels = ['Night (12am-6am)', 'Morning (6am-12pm)', 'Afternoon (12pm-6pm)', 'Evening (6pm-12am)'];
+    walkinVals = [0, 0, 0, 0];
+    onlineVals = [0, 0, 0, 0];
+
+    periodTxns.forEach(t => {
+      const td = new Date(t.date_created);
+      const hour = td.getHours();
+      let slotIdx = 1;
+      if (hour < 6) slotIdx = 0;
+      else if (hour < 12) slotIdx = 1;
+      else if (hour < 18) slotIdx = 2;
+      else slotIdx = 3;
+
+      const amt = parseFloat(t.total || 0);
+      if (isWalkInTransaction(t)) walkinVals[slotIdx] += amt;
+      else onlineVals[slotIdx] += amt;
+    });
+  } else {
+    // Default: 'monthly' (Days 1 to lastDayOfMonth)
+    const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+    for (let dayNum = 1; dayNum <= lastDay; dayNum++) {
+      labels.push(`${dayNum}`);
+      let wSum = 0;
+      let oSum = 0;
+      periodTxns.forEach(t => {
+        const td = new Date(t.date_created);
+        if (td.getFullYear() === currentYear && td.getMonth() === currentMonth && td.getDate() === dayNum) {
+          const amt = parseFloat(t.total || 0);
+          if (isWalkInTransaction(t)) wSum += amt;
+          else oSum += amt;
+        }
+      });
+      walkinVals.push(wSum);
+      onlineVals.push(oSum);
+    }
+  }
+
+  channelTrendChartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Walk-in POS Sales',
+          data: walkinVals,
+          backgroundColor: '#10b981',
+          borderColor: '#059669',
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Customer Online Orders',
+          data: onlineVals,
+          backgroundColor: '#0284c7',
+          borderColor: '#0369a1',
+          borderWidth: 1,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(51, 65, 85, 0.4)' },
+          ticks: { color: '#94a3b8', font: { size: 11 } }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(51, 65, 85, 0.4)' },
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 11 },
+            callback: (v) => '₱' + Number(v).toLocaleString()
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#f8fafc',
+            font: { size: 12, weight: '600' },
+            usePointStyle: true,
+            pointStyle: 'rectRounded'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleColor: '#38bdf8',
+          bodyColor: '#f8fafc',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(ctx) {
+              return ` ${ctx.dataset.label}: ₱${Number(ctx.parsed.y).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 // ==============================================================

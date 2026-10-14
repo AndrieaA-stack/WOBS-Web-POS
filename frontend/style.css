@@ -1169,6 +1169,42 @@ body {
   border-bottom: 1px solid #334155;
 }
 
+/* Channel Comparison Winner Banner & Styling */
+.channel-winner-banner {
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.3s ease;
+}
+
+.channel-winner-banner.winner-walkin {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.12);
+}
+
+.channel-winner-banner.winner-online {
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(2, 132, 199, 0.45);
+  box-shadow: 0 2px 12px rgba(2, 132, 199, 0.12);
+}
+
+.channel-winner-banner.winner-tied {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  box-shadow: 0 2px 12px rgba(168, 85, 247, 0.12);
+}
+
+.channel-winner-banner.winner-none {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+
 /* ==================== BARCODE SCANNER MODAL STYLES ==================== */
 .barcode-viewfinder-container {
   position: relative;
