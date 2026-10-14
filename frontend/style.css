@@ -1108,11 +1108,11 @@ body {
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
-/* Analytics Timeframe Segmented Controls */
+/* Analytics Timeframe Segmented Controls - 1000 PHP Theme */
 .analytics-pill-container {
   display: inline-flex;
-  background-color: #0f172a;
-  border: 1px solid #334155;
+  background-color: #051a2e;
+  border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -1121,7 +1121,7 @@ body {
 .analytics-pill-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #7dd3fc;
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12px;
@@ -1131,22 +1131,24 @@ body {
 }
 
 .analytics-pill-btn:hover {
-  color: #f8fafc;
+  color: #ffffff;
+  background-color: rgba(56, 189, 248, 0.15);
 }
 
 .analytics-pill-btn.active {
-  background-color: #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.45);
 }
 
-/* Analytics Cards & Tables */
+/* Analytics Cards & Tables - 1000 PHP Banknote Theme */
 .analytics-card {
-  background: #1e293b;
+  background: linear-gradient(135deg, #071f37 0%, #0c3156 50%, #051829 100%);
   color: #f8fafc;
-  border: 1px solid #334155;
-  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.18), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .analytics-table {
@@ -1158,18 +1160,18 @@ body {
 
 .analytics-table th {
   padding: 10px 14px;
-  color: #94a3b8;
+  color: #7dd3fc;
   font-weight: 600;
   font-size: 12px;
-  border-bottom: 2px solid #334155;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.3);
 }
 
 .analytics-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
 }
 
-/* Channel Comparison Winner Banner & Styling */
+/* Channel Comparison Winner Banner & Styling - 1000 PHP Theme */
 .channel-winner-banner {
   padding: 14px 18px;
   border-radius: 10px;
@@ -1182,27 +1184,27 @@ body {
 }
 
 .channel-winner-banner.winner-walkin {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 28, 48, 0.9) 100%);
   border: 1px solid rgba(16, 185, 129, 0.45);
-  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.12);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.15);
 }
 
 .channel-winner-banner.winner-online {
-  background: linear-gradient(90deg, rgba(2, 132, 199, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
-  border: 1px solid rgba(2, 132, 199, 0.45);
-  box-shadow: 0 2px 12px rgba(2, 132, 199, 0.12);
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.28) 0%, rgba(6, 28, 48, 0.9) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  box-shadow: 0 2px 14px rgba(2, 132, 199, 0.25);
 }
 
 .channel-winner-banner.winner-tied {
-  background: linear-gradient(90deg, rgba(168, 85, 247, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%);
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.2) 0%, rgba(6, 28, 48, 0.9) 100%);
   border: 1px solid rgba(168, 85, 247, 0.45);
-  box-shadow: 0 2px 12px rgba(168, 85, 247, 0.12);
+  box-shadow: 0 2px 12px rgba(168, 85, 247, 0.15);
 }
 
 .channel-winner-banner.winner-none {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid #334155;
-  color: #94a3b8;
+  background: rgba(6, 28, 48, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
 }
 
 /* ==================== BARCODE SCANNER MODAL STYLES ==================== */

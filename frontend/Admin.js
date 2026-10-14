@@ -1363,11 +1363,11 @@ function renderTrendChart(config) {
           borderRadius: 4
         },
         {
-          label: 'Customer Online Orders',
+          label: 'Customer Online Orders (1000 PHP Blue)',
           data: onlineVals,
           backgroundColor: '#0284c7',
-          borderColor: '#0369a1',
-          borderWidth: 1,
+          borderColor: '#38bdf8',
+          borderWidth: 1.5,
           borderRadius: 4
         }
       ]
@@ -1377,15 +1377,15 @@ function renderTrendChart(config) {
       maintainAspectRatio: false,
       scales: {
         x: {
-          grid: { color: 'rgba(51, 65, 85, 0.4)' },
-          ticks: { color: '#94a3b8', font: { size: 11 } }
+          grid: { color: 'rgba(56, 189, 248, 0.12)' },
+          ticks: { color: '#7dd3fc', font: { size: 11, weight: '600' } }
         },
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(51, 65, 85, 0.4)' },
+          grid: { color: 'rgba(56, 189, 248, 0.12)' },
           ticks: {
-            color: '#94a3b8',
-            font: { size: 11 },
+            color: '#7dd3fc',
+            font: { size: 11, weight: '600' },
             callback: (v) => '₱' + Number(v).toLocaleString()
           }
         }
@@ -1401,10 +1401,10 @@ function renderTrendChart(config) {
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a',
+          backgroundColor: '#071f37',
           titleColor: '#38bdf8',
           bodyColor: '#f8fafc',
-          borderColor: '#334155',
+          borderColor: 'rgba(56, 189, 248, 0.45)',
           borderWidth: 1,
           padding: 10,
           callbacks: {
