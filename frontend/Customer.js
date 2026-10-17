@@ -457,11 +457,13 @@ async function loadCustomerOrders() {
         let badgeText = status;
         if (status === 'DELIVERED' || status === 'COMPLETED') {
           badgeBg = '#16a34a';
+        } else if (status === 'ACCEPTED') {
+          badgeBg = '#16a34a';
         } else if (status === 'OUT FOR DELIVERY') {
           badgeBg = '#eab308';
         } else if (status === 'PREPARING ORDER' || status === 'PROCESSING') {
           badgeBg = '#9333ea';
-        } else if (status === 'CANCELLED') {
+        } else if (status === 'DECLINED' || status === 'CANCELLED') {
           badgeBg = '#ef4444';
         }
 
@@ -1015,10 +1017,14 @@ async function checkOrderStatus() {
       
       if (statusText === 'DELIVERED') {
         badge.style.background = '#22c55e'; // Green
+      } else if (statusText === 'ACCEPTED') {
+        badge.style.background = '#16a34a'; // Green
       } else if (statusText === 'OUT FOR DELIVERY') {
         badge.style.background = '#eab308'; // Amber
       } else if (statusText === 'PREPARING ORDER') {
         badge.style.background = '#a855f7'; // Purple
+      } else if (statusText === 'DECLINED' || statusText === 'CANCELLED') {
+        badge.style.background = '#ef4444'; // Red
       } else {
         badge.style.background = '#0284c7'; // Blue (Pending)
       }
