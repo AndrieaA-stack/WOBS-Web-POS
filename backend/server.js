@@ -227,6 +227,20 @@ app.post('/api/checkout', async (req, res) => {
     paymentMethod,
     status
   } = req.body;
+
+  const isWalkin = address && (
+    address.toLowerCase().includes('walk-in') || 
+    address.toLowerCase().includes('in-store') ||
+    address.toLowerCase().includes('cashier')
+  );
+
+  // Enforce mandatory GCash screenshot validation for all online customer delivery orders
+  if (!isWalkin && (paymentMethod === 'GCash' || !paymentMethod)) {
+    if (!paymentProof || typeof paymentProof !== 'string' || (!paymentProof.startsWith('data:image') && !paymentProof.startsWith('http'))) {
+      return res.status(400).json({ error: 'A valid GCash payment receipt screenshot is strictly required for online customer orders.' });
+    }
+  }
+
   const client = await pool.connect();
 
   try {

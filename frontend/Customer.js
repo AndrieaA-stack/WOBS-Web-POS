@@ -840,8 +840,19 @@ async function processGCashPayment() {
   const fullAddress = `${street}, Brgy. ${brgy}, ${city}, Bulacan`;
   const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
+  // Validate that the uploaded file is strictly an image
+  if (file.type && !file.type.startsWith('image/')) {
+    alert('Please upload a valid image file (PNG, JPG, JPEG, WEBP) for your GCash screenshot.');
+    return;
+  }
+
   try {
     const proofBase64 = await fileToBase64(file);
+
+    if (!proofBase64 || typeof proofBase64 !== 'string' || !proofBase64.startsWith('data:image')) {
+      alert('Failed to process image receipt. Please select a valid GCash screenshot.');
+      return;
+    }
 
     const newTxn = {
       id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
@@ -863,28 +874,24 @@ async function processGCashPayment() {
       body: JSON.stringify(newTxn)
     });
 
+    if (!res.ok) {
+      let errorMsg = 'Server could not process your order.';
+      try {
+        const errorData = await res.json();
+        if (errorData && errorData.error) errorMsg = errorData.error;
+      } catch (_) {}
+      alert(`⚠️ Checkout Error: ${errorMsg}`);
+      return;
+    }
+
     openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
     clearCart();
     closeGCashModal();
     renderPosCatalog();
     loadCustomerOrders();
   } catch (err) {
-    const newTxn = {
-      id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
-      customerId: customer ? customer.id : null,
-      customerUsername: customer ? customer.username : null,
-      customerName: name,
-      address: fullAddress,
-      items: cart,
-      total: grandTotal,
-      gcashRef: 'SCREENSHOT_ATTACHED',
-      paymentMethod: 'GCash',
-      status: 'Pending'
-    };
-    openReceiptModal({ ...newTxn, date: new Date().toLocaleString() });
-    clearCart();
-    closeGCashModal();
-    renderPosCatalog();
+    console.error("Checkout submission failed:", err);
+    alert('⚠️ Checkout failed: Could not connect to server or upload receipt. Please check your connection and try again.');
   }
 }
 
