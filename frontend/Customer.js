@@ -648,9 +648,11 @@ async function renderPosCatalog() {
           <h4 class="card-title">${p.name}</h4>
           ${isExpired ? '<span class="error-text">EXPIRED</span>' : (p.expiry ? `<small>Exp: ${p.expiry}</small>` : '<small style="color:#64748b;">No Expiration</small>')}
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; min-height:28px;">
           <span class="card-price">₱${p.price.toFixed(2)}</span>
-          <button type="button" onclick="addToCart('${p.id}')" ${!canAdd ? 'disabled' : ''} class="btn btn-primary btn-sm">+</button>
+          ${!isExpired ? `
+            <button type="button" onclick="addToCart('${p.id}')" ${!canAdd ? 'disabled' : ''} class="btn btn-primary btn-sm">+</button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -660,6 +662,11 @@ async function renderPosCatalog() {
 function addToCart(id) {
   var prod = products.find(p => p.id === id);
   if (!prod) return;
+
+  if (getDaysToExpiry(prod.expiry) < 0) {
+    alert('Sorry, this item is expired and cannot be added to cart.');
+    return;
+  }
 
   if (parseInt(prod.stock, 10) <= 0) {
     alert('Sorry, this item is currently out of stock.');

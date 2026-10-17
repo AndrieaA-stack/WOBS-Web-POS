@@ -1514,11 +1514,13 @@ function renderAdminPosCatalog() {
             ${isExpired ? '<span style="color:#ef4444; font-weight:bold;">EXPIRED</span>' : (p.expiry ? `<span style="color:#64748b;">Exp: ${p.expiry.split('T')[0]}</span>` : '<span style="color:#94a3b8;">No Expiry</span>')}
           </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0; min-height:28px;">
           <span class="card-price" style="font-size:14px; color:#0f172a;">₱${parseFloat(p.price).toFixed(2)}</span>
-          <button type="button" class="btn btn-primary btn-sm" ${!canAdd ? 'disabled' : ''} onclick="event.stopPropagation(); addToAdminPosCart('${p.id}')" style="padding:4px 10px; font-size:11px;">
-            <i class="fa-solid fa-plus"></i> Add
-          </button>
+          ${!isExpired ? `
+            <button type="button" class="btn btn-primary btn-sm" ${!canAdd ? 'disabled' : ''} onclick="event.stopPropagation(); addToAdminPosCart('${p.id}')" style="padding:4px 10px; font-size:11px;">
+              <i class="fa-solid fa-plus"></i> Add
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
