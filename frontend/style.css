@@ -6,20 +6,77 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Midnight Sapphire - Aura */
+/* Base color on BODY - blend modes composite against this */
 body {
-  background-color: #f8fafc;
+  background-color: #faf8f2;
   color: #1e293b;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
+/* ==================== AURA GRADIENT: "MIDNIGHT SAPPHIRE" ==================== */
+.aura-bg {
+  position: relative;
+  overflow: hidden;
+  overflow: clip; /* Clips blurred layers without creating a scroll container, preserving sticky headers */
+  min-height: 100vh; /* height must be explicit - absolute layers add none */
+  display: flex;
+  flex-direction: column;
+  /* NO background-color - layers blend against body */
+}
+
+/* Layer 1 - multiply */
+.aura-layer-1 {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0) 0%, rgba(61,90,255,0.12) 28%, rgb(255,255,255) 18%, rgb(45,55,135) 68%, rgb(20,25,60) 100%);
+  mix-blend-mode: multiply;
+  filter: blur(90px); /* use 130px on desktop */
+  transform: translateZ(0);
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Layer 2 - multiply */
+.aura-layer-2 {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0,0,0,0) 0%, rgba(61,90,255,0.22) 34%, rgb(255,255,255) 66%, rgb(45,55,135) 82%, rgb(20,25,60) 100%);
+  mix-blend-mode: multiply;
+  filter: blur(90px); /* use 130px on desktop */
+  transform: translateZ(0);
+  will-change: transform;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .aura-layer-1,
+  .aura-layer-2 {
+    filter: blur(130px);
+  }
+}
+
+/* Content wrapper that sits ABOVE the absolute layers */
+.aura-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  flex-grow: 1;
+  width: 100%;
+}
+
 /* CLEAN MODERN HEADER */
 .header {
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #0f172a;
   padding: 12px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -753,12 +810,17 @@ body {
 
 /* ==================== WELCOME PAGE STYLES ==================== */
 .welcome-page-bg {
-  background: linear-gradient(135deg, #333a4a 100%);
+  background-color: #faf8f2;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.welcome-aura-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  margin: 0;
   padding: 20px;
 }
 
@@ -1488,6 +1550,9 @@ body {
 
   /* Welcome Page Hero Card */
   .welcome-page-bg {
+    padding: 0;
+  }
+  .welcome-aura-wrapper {
     padding: 14px;
   }
   .welcome-hero-card {
