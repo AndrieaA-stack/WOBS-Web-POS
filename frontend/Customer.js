@@ -584,9 +584,9 @@ function handleBarcodeScan(e) {
 }
 
 function renderCategoryPills() {
-  // Only display categories for available in-stock items
-  var inStockProducts = products.filter(p => parseInt(p.stock, 10) > 0);
-  var categories = ['All', ...new Set(inStockProducts.map(p => p.category).filter(Boolean))];
+  // Only display categories for available, non-expired in-stock items
+  var availableProducts = products.filter(p => parseInt(p.stock, 10) > 0 && getDaysToExpiry(p.expiry) >= 0);
+  var categories = ['All', ...new Set(availableProducts.map(p => p.category).filter(Boolean))];
   var container = document.getElementById('category-pills');
   if (container) {
     if (!categories.includes(selectedCategory)) {
@@ -614,12 +614,14 @@ async function renderPosCatalog() {
 
   if (!catalog) return;
 
-  // Filter out any products that are out of stock (stock <= 0)
-  var filtered = products.filter(p => 
-    parseInt(p.stock, 10) > 0 &&
-    (selectedCategory === 'All' || p.category === selectedCategory) &&
-    (p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)))
-  );
+  // Filter out any products that are out of stock (stock <= 0) or expired (getDaysToExpiry < 0)
+  var filtered = products.filter(p => {
+    var isExpired = getDaysToExpiry(p.expiry) < 0;
+    var hasStock = parseInt(p.stock, 10) > 0;
+    var matchesCat = (selectedCategory === 'All' || p.category === selectedCategory);
+    var matchesSearch = (!search || p.name.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)));
+    return hasStock && !isExpired && matchesCat && matchesSearch;
+  });
 
   catalog.innerHTML = filtered.map(p => {
     var isExpired = getDaysToExpiry(p.expiry) < 0;
