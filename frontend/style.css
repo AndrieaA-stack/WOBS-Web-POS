@@ -1170,11 +1170,11 @@ body {
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
-/* Analytics Timeframe Segmented Controls - 1000 PHP Theme */
+/* Analytics Timeframe Segmented Controls - Clean Light Theme */
 .analytics-pill-container {
   display: inline-flex;
-  background-color: #051a2e;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -1183,7 +1183,7 @@ body {
 .analytics-pill-btn {
   background: none;
   border: none;
-  color: #7dd3fc;
+  color: #64748b;
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12px;
@@ -1193,47 +1193,49 @@ body {
 }
 
 .analytics-pill-btn:hover {
-  color: #ffffff;
-  background-color: rgba(56, 189, 248, 0.15);
+  color: #0f172a;
+  background-color: #e2e8f0;
 }
 
 .analytics-pill-btn.active {
-  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+  background: #0284c7;
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.45);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
 }
 
-/* Analytics Cards & Tables - 1000 PHP Banknote Theme */
+/* Analytics Cards & Tables - Clean White Theme */
 .analytics-card {
-  background: linear-gradient(135deg, #071f37 0%, #0c3156 50%, #051829 100%);
-  color: #f8fafc;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.18), 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
 }
 
 .analytics-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .analytics-table th {
   padding: 10px 14px;
-  color: #7dd3fc;
-  font-weight: 600;
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 700;
   font-size: 12px;
-  border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .analytics-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
 }
 
-/* Channel Comparison Winner Banner & Styling - 1000 PHP Theme */
+/* Channel Comparison Winner Banner & Styling - Clean Light Theme */
 .channel-winner-banner {
   padding: 14px 18px;
   border-radius: 10px;
@@ -1246,27 +1248,30 @@ body {
 }
 
 .channel-winner-banner.winner-walkin {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.18) 0%, rgba(6, 28, 48, 0.9) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.45);
-  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.15);
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+  color: #166534;
 }
 
 .channel-winner-banner.winner-online {
-  background: linear-gradient(90deg, rgba(2, 132, 199, 0.28) 0%, rgba(6, 28, 48, 0.9) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.55);
-  box-shadow: 0 2px 14px rgba(2, 132, 199, 0.25);
+  background: #f0f9ff;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12);
+  color: #1e40af;
 }
 
 .channel-winner-banner.winner-tied {
-  background: linear-gradient(90deg, rgba(168, 85, 247, 0.2) 0%, rgba(6, 28, 48, 0.9) 100%);
-  border: 1px solid rgba(168, 85, 247, 0.45);
-  box-shadow: 0 2px 12px rgba(168, 85, 247, 0.15);
+  background: #faf5ff;
+  border: 1px solid #d8b4fe;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.1);
+  color: #6b21a8;
 }
 
 .channel-winner-banner.winner-none {
-  background: rgba(6, 28, 48, 0.85);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #7dd3fc;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
 }
 
 /* ==================== BARCODE SCANNER MODAL STYLES ==================== */

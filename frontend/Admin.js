@@ -1022,15 +1022,15 @@ async function renderAnalytics() {
   if (bestSellersList) {
     const productsWithSales = sortedProducts.filter(p => p.qty > 0);
     if (productsWithSales.length === 0) {
-      bestSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#94a3b8;">No sales recorded for this timeframe</td></tr>';
+      bestSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#64748b;">No sales recorded for this timeframe</td></tr>';
     } else {
       bestSellersList.innerHTML = productsWithSales.slice(0, 5).map((p, idx) => `
-        <tr style="border-bottom: 1px solid #334155;">
-          <td style="padding: 12px 14px;">
-            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#0f172a; color:#4ade80; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 12px 14px; color: #0f172a;">
+            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#dcfce7; color:#15803d; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
             <strong>${p.name}</strong>
           </td>
-          <td style="text-align:right; padding: 12px 14px; color:#4ade80;"><strong>${p.qty} sold</strong></td>
+          <td style="text-align:right; padding: 12px 14px; color:#16a34a;"><strong>${p.qty} sold</strong></td>
         </tr>
       `).join('');
     }
@@ -1040,16 +1040,16 @@ async function renderAnalytics() {
   const leastSellersList = document.getElementById('least-selling-list');
   if (leastSellersList) {
     if (sortedProducts.length === 0) {
-      leastSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#94a3b8;">No products found</td></tr>';
+      leastSellersList.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:16px; color:#64748b;">No products found</td></tr>';
     } else {
       const leastProducts = [...sortedProducts].reverse().slice(0, 5);
       leastSellersList.innerHTML = leastProducts.map((p, idx) => `
-        <tr style="border-bottom: 1px solid #334155;">
-          <td style="padding: 12px 14px;">
-            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#0f172a; color:#f87171; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 12px 14px; color: #0f172a;">
+            <span style="display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; border-radius:50%; background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:bold; margin-right:8px;">#${idx + 1}</span>
             <strong>${p.name}</strong>
           </td>
-          <td style="text-align:right; padding: 12px 14px; color:#f87171;"><strong>${p.qty} sold</strong></td>
+          <td style="text-align:right; padding: 12px 14px; color:#dc2626;"><strong>${p.qty} sold</strong></td>
         </tr>
       `).join('');
     }
@@ -1137,105 +1137,105 @@ function renderChannelComparison(data) {
     if (totalSales === 0) {
       winnerBanner.classList.add('winner-none');
       winnerBanner.innerHTML = `
-        <div style="width: 36px; height: 36px; border-radius: 50%; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #94a3b8; flex-shrink: 0;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #64748b; flex-shrink: 0;">
           <i class="fa-solid fa-circle-info"></i>
         </div>
         <div>
-          <strong style="color: #cbd5e1; font-size: 14px;">No Sales Recorded For This Period</strong>
-          <div style="font-size: 12px; color: #94a3b8;">There are no completed walk-in transactions or accepted customer orders in this timeframe.</div>
+          <strong style="color: #334155; font-size: 14px;">No Sales Recorded For This Period</strong>
+          <div style="font-size: 12px; color: #64748b;">There are no completed walk-in transactions or accepted customer orders in this timeframe.</div>
         </div>
       `;
       if (walkinTag) {
         walkinTag.className = 'badge';
-        walkinTag.style.background = '#334155';
-        walkinTag.style.color = '#94a3b8';
+        walkinTag.style.background = '#f1f5f9';
+        walkinTag.style.color = '#64748b';
         walkinTag.textContent = 'No Sales';
       }
       if (onlineTag) {
         onlineTag.className = 'badge';
-        onlineTag.style.background = '#334155';
-        onlineTag.style.color = '#94a3b8';
+        onlineTag.style.background = '#f1f5f9';
+        onlineTag.style.color = '#64748b';
         onlineTag.textContent = 'No Sales';
       }
     } else if (walkinSales > onlineSales) {
       winnerBanner.classList.add('winner-walkin');
       winnerBanner.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(16, 185, 129, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #34d399; flex-shrink: 0; box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #16a34a; flex-shrink: 0; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);">
           <i class="fa-solid fa-trophy"></i>
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 2px;">
+          <div style="font-size: 14px; font-weight: 700; color: #15803d; margin-bottom: 2px;">
             🏆 Walk-in POS Has More Sales! (+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
           </div>
-          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+          <div style="font-size: 12px; color: #334155; line-height: 1.4;">
             Walk-in POS brought in <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${walkinShare.toFixed(1)}%)</strong>, leading Customer Online Orders (₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, ${onlineShare.toFixed(1)}%) by <strong>+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>.
           </div>
         </div>
       `;
       if (walkinTag) {
         walkinTag.className = 'badge';
-        walkinTag.style.background = '#065f46';
-        walkinTag.style.color = '#6ee7b7';
+        walkinTag.style.background = '#dcfce7';
+        walkinTag.style.color = '#15803d';
         walkinTag.innerHTML = '<i class="fa-solid fa-crown" style="margin-right: 4px;"></i>Leading Channel';
       }
       if (onlineTag) {
         onlineTag.className = 'badge';
-        onlineTag.style.background = '#1e293b';
-        onlineTag.style.color = '#94a3b8';
+        onlineTag.style.background = '#f1f5f9';
+        onlineTag.style.color = '#64748b';
         onlineTag.textContent = 'Trailing Channel';
       }
     } else if (onlineSales > walkinSales) {
       winnerBanner.classList.add('winner-online');
       winnerBanner.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(2, 132, 199, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #38bdf8; flex-shrink: 0; box-shadow: 0 0 12px rgba(2, 132, 199, 0.3);">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0284c7; flex-shrink: 0; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2);">
           <i class="fa-solid fa-trophy"></i>
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 14px; font-weight: 700; color: #38bdf8; margin-bottom: 2px;">
+          <div style="font-size: 14px; font-weight: 700; color: #0369a1; margin-bottom: 2px;">
             🏆 Customer Online Orders Has More Sales! (+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
           </div>
-          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+          <div style="font-size: 12px; color: #334155; line-height: 1.4;">
             Customer Online Orders brought in <strong>₱${onlineSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${onlineShare.toFixed(1)}%)</strong>, leading Walk-in POS (₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, ${walkinShare.toFixed(1)}%) by <strong>+₱${diff.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>.
           </div>
         </div>
       `;
       if (onlineTag) {
         onlineTag.className = 'badge';
-        onlineTag.style.background = '#0c4a6e';
-        onlineTag.style.color = '#7dd3fc';
+        onlineTag.style.background = '#e0f2fe';
+        onlineTag.style.color = '#0369a1';
         onlineTag.innerHTML = '<i class="fa-solid fa-crown" style="margin-right: 4px;"></i>Leading Channel';
       }
       if (walkinTag) {
         walkinTag.className = 'badge';
-        walkinTag.style.background = '#1e293b';
-        walkinTag.style.color = '#94a3b8';
+        walkinTag.style.background = '#f1f5f9';
+        walkinTag.style.color = '#64748b';
         walkinTag.textContent = 'Trailing Channel';
       }
     } else {
       winnerBanner.classList.add('winner-tied');
       winnerBanner.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(168, 85, 247, 0.25); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #c084fc; flex-shrink: 0;">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: #f3e8ff; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #7e22ce; flex-shrink: 0;">
           <i class="fa-solid fa-scale-balanced"></i>
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 14px; font-weight: 700; color: #c084fc; margin-bottom: 2px;">
+          <div style="font-size: 14px; font-weight: 700; color: #6b21a8; margin-bottom: 2px;">
             ⚖️ Walk-in POS and Customer Online Orders Are Tied!
           </div>
-          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+          <div style="font-size: 12px; color: #334155; line-height: 1.4;">
             Both channels produced identical sales of <strong>₱${walkinSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> each (50% / 50% split).
           </div>
         </div>
       `;
       if (walkinTag) {
         walkinTag.className = 'badge';
-        walkinTag.style.background = '#581c87';
-        walkinTag.style.color = '#e9d5ff';
+        walkinTag.style.background = '#f3e8ff';
+        walkinTag.style.color = '#7e22ce';
         walkinTag.textContent = 'Tied (50%)';
       }
       if (onlineTag) {
         onlineTag.className = 'badge';
-        onlineTag.style.background = '#581c87';
-        onlineTag.style.color = '#e9d5ff';
+        onlineTag.style.background = '#f3e8ff';
+        onlineTag.style.color = '#7e22ce';
         onlineTag.textContent = 'Tied (50%)';
       }
     }
@@ -1377,14 +1377,14 @@ function renderTrendChart(config) {
       maintainAspectRatio: false,
       scales: {
         x: {
-          grid: { color: 'rgba(56, 189, 248, 0.12)' },
-          ticks: { color: '#7dd3fc', font: { size: 11, weight: '600' } }
+          grid: { color: 'rgba(226, 232, 240, 0.8)' },
+          ticks: { color: '#64748b', font: { size: 11, weight: '600' } }
         },
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(56, 189, 248, 0.12)' },
+          grid: { color: 'rgba(226, 232, 240, 0.8)' },
           ticks: {
-            color: '#7dd3fc',
+            color: '#64748b',
             font: { size: 11, weight: '600' },
             callback: (v) => '₱' + Number(v).toLocaleString()
           }
@@ -1394,14 +1394,14 @@ function renderTrendChart(config) {
         legend: {
           position: 'top',
           labels: {
-            color: '#f8fafc',
+            color: '#0f172a',
             font: { size: 12, weight: '600' },
             usePointStyle: true,
             pointStyle: 'rectRounded'
           }
         },
         tooltip: {
-          backgroundColor: '#071f37',
+          backgroundColor: '#0f172a',
           titleColor: '#38bdf8',
           bodyColor: '#f8fafc',
           borderColor: 'rgba(56, 189, 248, 0.45)',

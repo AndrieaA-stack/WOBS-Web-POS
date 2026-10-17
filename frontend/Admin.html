@@ -170,24 +170,24 @@
     
     <!-- TAB 3: SALES & PRODUCT ANALYTICS -->
     <div id="section-analytics" class="admin-section hidden">
-      <!-- Main Overview Card (1000 PHP Banknote Theme) -->
-      <div class="card mb-3" style="background: linear-gradient(135deg, #071f37 0%, #0c3156 50%, #051829 100%); color: #fff; padding: 22px; border-radius: 14px; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 8px 24px rgba(2, 132, 199, 0.18), 0 2px 6px rgba(0,0,0,0.3);">
+      <!-- Main Overview Card (Clean White Theme) -->
+      <div class="card mb-3" style="background: #ffffff; color: #0f172a; padding: 22px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
         
         <!-- Header row with title & timeframe choices -->
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span id="sales-period-label" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #38bdf8; background: rgba(56, 189, 248, 0.16); padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.35);">Monthly Performance</span>
-              <span id="sales-date-range-badge" style="font-size: 12px; color: #7dd3fc; font-weight: 500;"></span>
+              <span id="sales-period-label" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #0369a1; background: #e0f2fe; padding: 3px 10px; border-radius: 12px; border: 1px solid #bae6fd;">Monthly Performance</span>
+              <span id="sales-date-range-badge" style="font-size: 12px; color: #64748b; font-weight: 500;"></span>
               
               <!-- Quick Today's Sales Highlight Chip -->
-              <div id="analytics-today-chip" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 10px; border-radius: 12px; font-size: 11px;">
-                <span style="color: #7dd3fc; font-weight: 700;"><i class="fa-solid fa-calendar-check" style="margin-right: 3px; color: #38bdf8;"></i>Today's Sales:</span>
-                <strong id="today-quick-sales" style="color: #38bdf8;">₱0.00</strong>
-                <span id="today-quick-orders" style="color: #93c5fd;">(0 sales)</span>
+              <div id="analytics-today-chip" style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 10px; border-radius: 12px; font-size: 11px;">
+                <span style="color: #166534; font-weight: 700;"><i class="fa-solid fa-calendar-check" style="margin-right: 3px; color: #16a34a;"></i>Today's Sales:</span>
+                <strong id="today-quick-sales" style="color: #16a34a;">₱0.00</strong>
+                <span id="today-quick-orders" style="color: #15803d;">(0 sales)</span>
               </div>
             </div>
-            <h2 id="sales-title-label" style="margin: 8px 0 0 0; font-size: 22px; font-weight: 700; color: #f8fafc; letter-spacing: -0.3px;">Total Monthly Sales</h2>
+            <h2 id="sales-title-label" style="margin: 8px 0 0 0; font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px;">Total Monthly Sales</h2>
           </div>
 
           <!-- Timeframe Choice Controls -->
@@ -202,11 +202,11 @@
 
             <!-- Optional Daily Date Picker (shown when Daily timeframe is active) -->
             <div id="analytics-daily-picker-container" class="hidden" style="display: inline-flex; align-items: center; gap: 6px;">
-              <input type="date" id="analytics-daily-date" onchange="renderAnalytics()" style="font-size: 13px; font-weight: 600; padding: 7px 10px; border-radius: 8px; background: #051a2e; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); cursor: pointer; outline: none;">
+              <input type="date" id="analytics-daily-date" onchange="renderAnalytics()" style="font-size: 13px; font-weight: 600; padding: 7px 10px; border-radius: 8px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; cursor: pointer; outline: none;">
             </div>
 
             <!-- Year Filter Selector -->
-            <select id="analytics-year-select" onchange="renderAnalytics()" style="font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; background: #051a2e; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); cursor: pointer; outline: none;">
+            <select id="analytics-year-select" onchange="renderAnalytics()" style="font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; cursor: pointer; outline: none;">
               <option value="2026" selected>Year 2026</option>
               <option value="2027">Year 2027</option>
               <option value="2025">Year 2025</option>
@@ -216,71 +216,71 @@
 
         <!-- 5-KPI Overview Cards: Total, Walk-in, Online, Completed, Units -->
         <div class="analytics-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
-          <!-- Card 1: Total Revenue (1000 PHP Banknote Accent) -->
-          <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(6, 182, 212, 0.12) 100%); padding: 16px 18px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.18);">
-            <div style="font-size: 11px; color: #7dd3fc; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">
-              <i class="fa-solid fa-money-bill-wave" style="color: #38bdf8; margin-right: 6px;"></i> Total Revenue
+          <!-- Card 1: Total Revenue -->
+          <div style="background: #f0f9ff; padding: 16px 18px; border-radius: 10px; border: 1px solid #bae6fd; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08);">
+            <div style="font-size: 11px; color: #0369a1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">
+              <i class="fa-solid fa-money-bill-wave" style="color: #0284c7; margin-right: 6px;"></i> Total Revenue
             </div>
-            <h1 id="monthly-sales-amount" style="color: #38bdf8; font-size: 27px; font-weight: 800; margin: 0; text-shadow: 0 0 16px rgba(56, 189, 248, 0.4);">₱0.00</h1>
-            <div style="font-size: 11px; color: #93c5fd; margin-top: 4px;">All combined channels</div>
+            <h1 id="monthly-sales-amount" style="color: #0284c7; font-size: 27px; font-weight: 800; margin: 0;">₱0.00</h1>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">All combined channels</div>
           </div>
 
           <!-- Card 2: Walk-in POS Sales -->
-          <div style="background: rgba(16, 185, 129, 0.08); padding: 16px 18px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.35);">
-            <div style="font-size: 11px; color: #6ee7b7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-              <i class="fa-solid fa-store" style="color: #10b981; margin-right: 6px;"></i> Walk-in Sales
+          <div style="background: #f0fdf4; padding: 16px 18px; border-radius: 10px; border: 1px solid #bbf7d0; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);">
+            <div style="font-size: 11px; color: #15803d; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-store" style="color: #16a34a; margin-right: 6px;"></i> Walk-in Sales
             </div>
-            <h2 id="analytics-walkin-revenue" style="color: #10b981; font-size: 24px; font-weight: 700; margin: 0;">₱0.00</h2>
-            <div id="analytics-walkin-orders-count" style="font-size: 11px; color: #6ee7b7; margin-top: 4px;">0 sales (0%)</div>
+            <h2 id="analytics-walkin-revenue" style="color: #16a34a; font-size: 24px; font-weight: 700; margin: 0;">₱0.00</h2>
+            <div id="analytics-walkin-orders-count" style="font-size: 11px; color: #15803d; margin-top: 4px;">0 sales (0%)</div>
           </div>
 
-          <!-- Card 3: Online Customer Orders (1000 PHP Blue Accent) -->
-          <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.18) 0%, rgba(14, 165, 233, 0.08) 100%); padding: 16px 18px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.4);">
-            <div style="font-size: 11px; color: #7dd3fc; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-              <i class="fa-solid fa-truck-ramp-box" style="color: #38bdf8; margin-right: 6px;"></i> Online Orders
+          <!-- Card 3: Online Customer Orders -->
+          <div style="background: #f0f9ff; padding: 16px 18px; border-radius: 10px; border: 1px solid #bae6fd; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08);">
+            <div style="font-size: 11px; color: #0369a1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-truck-ramp-box" style="color: #0284c7; margin-right: 6px;"></i> Online Orders
             </div>
-            <h2 id="analytics-online-revenue" style="color: #38bdf8; font-size: 24px; font-weight: 700; margin: 0;">₱0.00</h2>
-            <div id="analytics-online-orders-count" style="font-size: 11px; color: #7dd3fc; margin-top: 4px;">0 orders (0%)</div>
+            <h2 id="analytics-online-revenue" style="color: #0284c7; font-size: 24px; font-weight: 700; margin: 0;">₱0.00</h2>
+            <div id="analytics-online-orders-count" style="font-size: 11px; color: #0369a1; margin-top: 4px;">0 orders (0%)</div>
           </div>
 
           <!-- Card 4: Completed Orders -->
-          <div style="background: rgba(5, 26, 46, 0.7); padding: 16px 18px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
-            <div style="font-size: 11px; color: #7dd3fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-              <i class="fa-solid fa-receipt" style="color: #38bdf8; margin-right: 6px;"></i> Total Orders
+          <div style="background: #f8fafc; padding: 16px 18px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);">
+            <div style="font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-receipt" style="color: #64748b; margin-right: 6px;"></i> Total Orders
             </div>
-            <h2 id="analytics-orders-count" style="color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0;">0</h2>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Fulfilled / Completed</div>
+            <h2 id="analytics-orders-count" style="color: #0f172a; font-size: 24px; font-weight: 700; margin: 0;">0</h2>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Fulfilled / Completed</div>
           </div>
 
           <!-- Card 5: Items Sold -->
-          <div style="background: rgba(5, 26, 46, 0.7); padding: 16px 18px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
-            <div style="font-size: 11px; color: #fde047; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-              <i class="fa-solid fa-box-archive" style="color: #fbbf24; margin-right: 6px;"></i> Items Sold
+          <div style="background: #fefce8; padding: 16px 18px; border-radius: 10px; border: 1px solid #fef08a; box-shadow: 0 2px 6px rgba(202, 138, 4, 0.08);">
+            <div style="font-size: 11px; color: #a16207; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+              <i class="fa-solid fa-box-archive" style="color: #ca8a04; margin-right: 6px;"></i> Items Sold
             </div>
-            <h2 id="analytics-units-count" style="color: #fbbf24; font-size: 24px; font-weight: 700; margin: 0;">0 units</h2>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Quantity across products</div>
+            <h2 id="analytics-units-count" style="color: #a16207; font-size: 24px; font-weight: 700; margin: 0;">0 units</h2>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Quantity across products</div>
           </div>
         </div>
       </div>
 
-      <!-- CHANNEL COMPARISON & CHART: WALK-IN POS VS ONLINE ORDERS (1000 PHP Theme) -->
-      <div class="card analytics-card mb-3" style="background: linear-gradient(135deg, #071f37 0%, #0c3156 50%, #051829 100%); border: 1px solid rgba(56, 189, 248, 0.35); margin-bottom: 22px; box-shadow: 0 8px 24px rgba(2, 132, 199, 0.15);">
+      <!-- CHANNEL COMPARISON & CHART: WALK-IN POS VS ONLINE ORDERS (Clean White Theme) -->
+      <div class="card analytics-card mb-3" style="background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 22px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);">
         <!-- Header row with Chart switcher -->
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Channel Comparison</span>
-              <h3 style="margin: 0; color: #f8fafc; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-scale-balanced" style="color: #38bdf8;"></i> Walk-in POS vs. Customer Online Orders
+              <span style="background: #f1f5f9; color: #0284c7; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Channel Comparison</span>
+              <h3 style="margin: 0; color: #0f172a; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-scale-balanced" style="color: #0284c7;"></i> Walk-in POS vs. Customer Online Orders
               </h3>
             </div>
-            <p style="margin: 0; color: #94a3b8; font-size: 12px;">Visual sales comparison to clearly identify which sales channel brings more revenue.</p>
+            <p style="margin: 0; color: #64748b; font-size: 12px;">Visual sales comparison to clearly identify which sales channel brings more revenue.</p>
           </div>
 
           <!-- Bar Graph Section Badge -->
-          <div style="display: inline-flex; align-items: center; gap: 7px; background: rgba(56, 189, 248, 0.14); border: 1px solid rgba(56, 189, 248, 0.35); padding: 5px 12px; border-radius: 8px;">
-            <i class="fa-solid fa-chart-column" style="color: #38bdf8; font-size: 13px;"></i>
-            <span style="font-size: 12px; font-weight: 700; color: #38bdf8;">Comparative Sales Bar Graph</span>
+          <div style="display: inline-flex; align-items: center; gap: 7px; background: #f0f9ff; border: 1px solid #bae6fd; padding: 5px 12px; border-radius: 8px;">
+            <i class="fa-solid fa-chart-column" style="color: #0284c7; font-size: 13px;"></i>
+            <span style="font-size: 12px; font-weight: 700; color: #0284c7;">Comparative Sales Bar Graph</span>
           </div>
         </div>
 
@@ -292,14 +292,14 @@
         <!-- Visual Channel Distribution Progress Bar -->
         <div style="margin-bottom: 20px;">
           <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px;">
-            <span style="color: #10b981; display: flex; align-items: center; gap: 6px;">
+            <span style="color: #16a34a; display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-store"></i> Walk-in POS: <span id="dist-bar-walkin-label">0% (₱0.00)</span>
             </span>
-            <span style="color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+            <span style="color: #0284c7; display: flex; align-items: center; gap: 6px;">
               Customer Online Orders: <span id="dist-bar-online-label">0% (₱0.00)</span> <i class="fa-solid fa-truck-ramp-box"></i>
             </span>
           </div>
-          <div style="width: 100%; height: 12px; background: #051a2e; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid rgba(56, 189, 248, 0.3);">
+          <div style="width: 100%; height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid #cbd5e1;">
             <div id="dist-bar-walkin-fill" style="width: 50%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.5s ease;"></div>
             <div id="dist-bar-online-fill" style="width: 50%; background: linear-gradient(90deg, #0284c7, #38bdf8); transition: width 0.5s ease;"></div>
           </div>
@@ -308,14 +308,14 @@
         <!-- 2-Column Comparison Layout: Chart on Left, Channel Breakdown Cards on Right -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: center;">
           
-          <!-- Chart Container (1000 PHP Banknote Theme) -->
-          <div style="background: rgba(5, 26, 46, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 18px; position: relative;">
+          <!-- Chart Container (Clean White Theme) -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; position: relative;">
             <!-- Timeline Bar Graph -->
             <div id="channel-trend-container" style="position: relative; height: 280px; width: 100%;">
               <canvas id="channel-trend-chart"></canvas>
             </div>
             
-            <div id="chart-sub-caption" style="text-align: center; margin-top: 10px; font-size: 11px; color: #7dd3fc;">
+            <div id="chart-sub-caption" style="text-align: center; margin-top: 10px; font-size: 11px; color: #64748b;">
               Timeline Bar Graph: Compares sales (₱) between Walk-in POS and Customer Online Orders across each time period.
             </div>
           </div>
@@ -324,69 +324,69 @@
           <div style="display: flex; flex-direction: column; gap: 14px;">
             
             <!-- Channel 1: Walk-in POS Card -->
-            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-left: 5px solid #10b981; border-radius: 10px; padding: 16px;">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #10b981; border-radius: 10px; padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; color: #10b981; font-size: 16px;">
+                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 16px;">
                     <i class="fa-solid fa-store"></i>
                   </div>
                   <div>
-                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #f8fafc;">Walk-in POS Transactions</h4>
-                    <span style="font-size: 11px; color: #94a3b8;">Cashier in-store register sales</span>
+                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Walk-in POS Transactions</h4>
+                    <span style="font-size: 11px; color: #64748b;">Cashier in-store register sales</span>
                   </div>
                 </div>
-                <span id="walkin-leader-tag" class="badge" style="background: #065f46; color: #6ee7b7; font-size: 11px; padding: 3px 8px; font-weight: 700;">--</span>
+                <span id="walkin-leader-tag" class="badge" style="background: #dcfce7; color: #15803d; font-size: 11px; padding: 3px 8px; font-weight: 700;">--</span>
               </div>
               
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: rgba(5, 26, 46, 0.8); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #dcfce7;">
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Sales Revenue</div>
-                  <strong id="card-walkin-revenue" style="font-size: 15px; color: #10b981;">₱0.00</strong>
-                  <div id="card-walkin-share" style="font-size: 10px; color: #6ee7b7;">(0% of total)</div>
+                  <div style="font-size: 11px; color: #64748b;">Sales Revenue</div>
+                  <strong id="card-walkin-revenue" style="font-size: 15px; color: #16a34a;">₱0.00</strong>
+                  <div id="card-walkin-share" style="font-size: 10px; color: #15803d;">(0% of total)</div>
                 </div>
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Transactions</div>
-                  <strong id="card-walkin-orders" style="font-size: 15px; color: #f8fafc;">0</strong>
-                  <div id="card-walkin-units" style="font-size: 10px; color: #94a3b8;">0 units</div>
+                  <div style="font-size: 11px; color: #64748b;">Transactions</div>
+                  <strong id="card-walkin-orders" style="font-size: 15px; color: #0f172a;">0</strong>
+                  <div id="card-walkin-units" style="font-size: 10px; color: #64748b;">0 units</div>
                 </div>
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Avg. Basket</div>
-                  <strong id="card-walkin-avg" style="font-size: 15px; color: #38bdf8;">₱0.00</strong>
-                  <div style="font-size: 10px; color: #94a3b8;">per transaction</div>
+                  <div style="font-size: 11px; color: #64748b;">Avg. Basket</div>
+                  <strong id="card-walkin-avg" style="font-size: 15px; color: #0284c7;">₱0.00</strong>
+                  <div style="font-size: 10px; color: #64748b;">per transaction</div>
                 </div>
               </div>
             </div>
 
-            <!-- Channel 2: Customer Online Orders Card (1000 PHP Signature Blue) -->
-            <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.18) 0%, rgba(14, 165, 233, 0.08) 100%); border: 1px solid rgba(56, 189, 248, 0.45); border-left: 5px solid #0284c7; border-radius: 10px; padding: 16px;">
+            <!-- Channel 2: Customer Online Orders Card -->
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-left: 5px solid #0284c7; border-radius: 10px; padding: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(2, 132, 199, 0.25); display: flex; align-items: center; justify-content: center; color: #38bdf8; font-size: 16px;">
+                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(2, 132, 199, 0.15); display: flex; align-items: center; justify-content: center; color: #0284c7; font-size: 16px;">
                     <i class="fa-solid fa-truck-ramp-box"></i>
                   </div>
                   <div>
-                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #f8fafc;">Customer Online Orders</h4>
-                    <span style="font-size: 11px; color: #94a3b8;">Online portal delivery orders</span>
+                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Customer Online Orders</h4>
+                    <span style="font-size: 11px; color: #64748b;">Online portal delivery orders</span>
                   </div>
                 </div>
-                <span id="online-leader-tag" class="badge" style="background: #0c4a6e; color: #7dd3fc; font-size: 11px; padding: 3px 8px; font-weight: 700;">--</span>
+                <span id="online-leader-tag" class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 3px 8px; font-weight: 700;">--</span>
               </div>
               
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: rgba(5, 26, 46, 0.8); padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e0f2fe;">
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Sales Revenue</div>
-                  <strong id="card-online-revenue" style="font-size: 15px; color: #38bdf8;">₱0.00</strong>
-                  <div id="card-online-share" style="font-size: 10px; color: #7dd3fc;">(0% of total)</div>
+                  <div style="font-size: 11px; color: #64748b;">Sales Revenue</div>
+                  <strong id="card-online-revenue" style="font-size: 15px; color: #0284c7;">₱0.00</strong>
+                  <div id="card-online-share" style="font-size: 10px; color: #0369a1;">(0% of total)</div>
                 </div>
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Completed Orders</div>
-                  <strong id="card-online-orders" style="font-size: 15px; color: #f8fafc;">0</strong>
-                  <div id="card-online-units" style="font-size: 10px; color: #94a3b8;">0 units</div>
+                  <div style="font-size: 11px; color: #64748b;">Completed Orders</div>
+                  <strong id="card-online-orders" style="font-size: 15px; color: #0f172a;">0</strong>
+                  <div id="card-online-units" style="font-size: 10px; color: #64748b;">0 units</div>
                 </div>
                 <div>
-                  <div style="font-size: 11px; color: #94a3b8;">Avg. Order</div>
-                  <strong id="card-online-avg" style="font-size: 15px; color: #38bdf8;">₱0.00</strong>
-                  <div style="font-size: 10px; color: #94a3b8;">per order</div>
+                  <div style="font-size: 11px; color: #64748b;">Avg. Order</div>
+                  <strong id="card-online-avg" style="font-size: 15px; color: #0284c7;">₱0.00</strong>
+                  <div style="font-size: 10px; color: #64748b;">per order</div>
                 </div>
               </div>
             </div>
@@ -400,15 +400,15 @@
       <div style="display: flex; flex-direction: column; gap: 20px;">
         <!-- Best Sellers (On Top) -->
         <div class="card analytics-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(56, 189, 248, 0.25); padding-bottom:8px;">
-            <h3 style="color:#38bdf8; margin:0; font-size:16px;">
-              <i class="fa-solid fa-award" style="margin-right: 6px; color: #38bdf8;"></i> Top Best Selling Products
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+            <h3 style="color:#0284c7; margin:0; font-size:16px;">
+              <i class="fa-solid fa-award" style="margin-right: 6px; color: #0284c7;"></i> Top Best Selling Products
             </h3>
-            <span id="best-sellers-badge" class="badge" style="background:#075985; color:#bae6fd; font-size:11px; padding:3px 8px;">Monthly</span>
+            <span id="best-sellers-badge" class="badge" style="background:#e0f2fe; color:#0284c7; font-size:11px; padding:3px 8px; font-weight: 700; border: 1px solid #bae6fd;">Monthly</span>
           </div>
           <table class="analytics-table" style="width:100%; min-width:unset; border-collapse:collapse;">
             <thead>
-              <tr style="text-align:left; border-bottom:2px solid rgba(56, 189, 248, 0.3);">
+              <tr style="text-align:left; border-bottom:2px solid #e2e8f0;">
                 <th style="padding: 10px 12px;">Product Name</th>
                 <th style="text-align:right; padding: 10px 12px;">Units Sold</th>
               </tr>
@@ -419,15 +419,15 @@
 
         <!-- Least Sellers (At the Bottom) -->
         <div class="card analytics-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(56, 189, 248, 0.25); padding-bottom:8px;">
-            <h3 style="color:#f87171; margin:0; font-size:16px;">
-              <i class="fa-solid fa-arrow-down-short-wide" style="margin-right: 6px;"></i> Least Selling Products
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+            <h3 style="color:#dc2626; margin:0; font-size:16px;">
+              <i class="fa-solid fa-arrow-down-short-wide" style="margin-right: 6px; color: #dc2626;"></i> Least Selling Products
             </h3>
-            <span id="least-sellers-badge" class="badge" style="background:#7f1d1d; color:#fecaca; font-size:11px; padding:3px 8px;">Monthly</span>
+            <span id="least-sellers-badge" class="badge" style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:3px 8px; font-weight: 700; border: 1px solid #fecaca;">Monthly</span>
           </div>
           <table class="analytics-table" style="width:100%; min-width:unset; border-collapse:collapse;">
             <thead>
-              <tr style="text-align:left; border-bottom:2px solid rgba(56, 189, 248, 0.3);">
+              <tr style="text-align:left; border-bottom:2px solid #e2e8f0;">
                 <th style="padding: 10px 12px;">Product Name</th>
                 <th style="text-align:right; padding: 10px 12px;">Units Sold</th>
               </tr>
