@@ -145,11 +145,7 @@ const LOCATION_DATA = {
 };
 
 // Fallback products when backend database is unavailable
-const MOCK_PRODUCTS = [
-  { id: 'p1', barcode: '4800016022014', name: 'Lucky Me! Pancit Canton', category: 'Instant Noodles', cost: 13.00, price: 16.00, stock: 40, expiry: '2027-02-15', image: '' },
-  { id: 'p2', barcode: '4800016055012', name: 'Century Tuna Flakes 180g', category: 'Canned Goods', cost: 38.50, price: 46.00, stock: 18, expiry: '2027-08-20', image: '' },
-  { id: 'p3', barcode: '4800092112345', name: 'San Mig Coffee 3-in-1', category: 'Beverages', cost: 7.00, price: 9.00, stock: 80, expiry: '2026-12-10', image: '' }
-];
+const MOCK_PRODUCTS = [];
 
 // Convert image file into Base64 string
 function fileToBase64(file) {

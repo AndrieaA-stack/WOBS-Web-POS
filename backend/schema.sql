@@ -64,9 +64,3 @@ INSERT INTO admin_accounts (fullname, username, password)
 VALUES ('Administrator', 'admin', 'password123')
 ON CONFLICT (username) DO NOTHING;
 
-INSERT INTO products (id, barcode, name, category, cost, price, stock, expiry, image)
-VALUES
-    ('p1', '4800016022014', 'Lucky Me! Pancit Canton', 'INSTANT NOODLES', 13.00, 16.00, 38, '2027-02-15', NULL),
-    ('p2', '4800016055012', 'Century Tuna Flakes 180g', 'CANNED GOODS', 38.50, 46.00, 18, '2027-08-20', NULL),
-    ('p3', '4800092112345', 'San Mig Coffee 3-in-1', 'BEVERAGES', 7.00, 9.00, 78, '2026-12-10', NULL)
-ON CONFLICT (id) DO NOTHING;
