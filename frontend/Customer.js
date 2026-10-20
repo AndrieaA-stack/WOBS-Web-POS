@@ -940,9 +940,11 @@ async function processGCashPayment() {
     }
 
     const newTxnId = 'WOBS-' + Math.floor(100000 + Math.random() * 900000);
+    const primaryProductId = (cart && cart.length > 0) ? (cart[0].ProductID || cart[0].id) : null;
     const newTxn = {
       id: newTxnId,
       TransactionID: newTxnId,
+      ProductID: primaryProductId,
       customerId: customer ? (customer.CustomerID || customer.id) : null,
       customerUsername: customer ? customer.username : null,
       customerName: name,

@@ -2087,9 +2087,11 @@ async function processAdminPosCheckout() {
   const txnId = 'WOBS-' + Math.floor(100000 + Math.random() * 900000);
   const cashierUsername = sessionStorage.getItem('wobs_admin_username') || 'Admin';
 
+  const primaryProductId = (posCart && posCart.length > 0) ? (posCart[0].ProductID || posCart[0].id) : null;
   const checkoutPayload = {
     id: txnId,
     TransactionID: txnId,
+    ProductID: primaryProductId,
     customerId: null,
     customerUsername: null,
     customerName: customerName,

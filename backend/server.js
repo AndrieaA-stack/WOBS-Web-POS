@@ -48,7 +48,7 @@ const DB_COLS = {
   customers: { id: '"CustomerID"' },
   admin_accounts: { id: '"AdminID"' },
   pending_admin_accounts: { id: '"PendingAdminID"' },
-  transactions: { id: '"TransactionID"' },
+  transactions: { id: '"TransactionID"', productId: '"ProductID"', hasItems: false },
 };
 
 // Auto-detect exact column casing from database
@@ -77,11 +77,19 @@ async function detectDatabaseColumns() {
       if (t === 'pending_admin_accounts' && (cLower === 'pendingadminid' || cLower === 'id')) {
         DB_COLS.pending_admin_accounts.id = `"${c}"`;
       }
-      if (t === 'transactions' && (cLower === 'transactionid' || cLower === 'id')) {
-        DB_COLS.transactions.id = `"${c}"`;
+      if (t === 'transactions') {
+        if (cLower === 'transactionid' || cLower === 'id') {
+          DB_COLS.transactions.id = `"${c}"`;
+        }
+        if (cLower === 'productid') {
+          DB_COLS.transactions.productId = `"${c}"`;
+        }
+        if (cLower === 'items') {
+          DB_COLS.transactions.hasItems = true;
+        }
       }
     }
-    console.log("🔍 Detected Database Primary Key Column Mapping:", DB_COLS);
+    console.log("🔍 Detected Database Column Mapping:", DB_COLS);
   } catch (err) {
     console.warn("⚠️ Column detection note (using standard mappings):", err.message);
   }
@@ -109,10 +117,11 @@ async function initDatabaseSchema() {
       );
     `);
 
-    // 2. Ensure transactions table with TransactionID
+    // 2. Ensure transactions table with TransactionID and ProductID fk
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         "TransactionID" VARCHAR(100) PRIMARY KEY,
+        "ProductID" VARCHAR(100) REFERENCES products("ProductID"),
         customer_id VARCHAR(100),
         customer_username VARCHAR(100),
         customer_name VARCHAR(150),
@@ -120,7 +129,7 @@ async function initDatabaseSchema() {
         gcash_ref VARCHAR(100),
         payment_proof TEXT,
         total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-        items JSONB NOT NULL,
+        items JSONB,
         status VARCHAR(50) DEFAULT 'Pending',
         payment_method VARCHAR(50) DEFAULT 'GCash',
         date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -199,10 +208,16 @@ async function initDatabaseSchema() {
           ALTER TABLE pending_admin_accounts RENAME COLUMN id TO "PendingAdminID";
         END IF;
 
-        -- transactions optional columns
+        -- transactions columns & ProductID foreign key
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "ProductID" VARCHAR(100) REFERENCES products("ProductID");
         ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100);
         ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_username VARCHAR(100);
         ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'GCash';
+
+        -- Allow items column to be nullable if present with older schema
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='items') THEN
+          ALTER TABLE transactions ALTER COLUMN items DROP NOT NULL;
+        END IF;
       END $$;
     `);
 
@@ -355,14 +370,15 @@ app.post('/api/checkout', async (req, res) => {
     await client.query('BEGIN');
 
     const txnPkCol = DB_COLS.transactions.id;
+    const txnProdCol = DB_COLS.transactions.productId || '"ProductID"';
     const prodPkCol = DB_COLS.products.id;
 
-    const txnQuery = `
-      INSERT INTO transactions (${txnPkCol}, customer_id, customer_username, customer_name, address, gcash_ref, payment_proof, total, items, status, payment_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `;
-    await client.query(txnQuery, [
+    const primaryProductId = req.body.ProductID || req.body.productId || (items && items[0] ? (items[0].ProductID || items[0].id) : null);
+
+    const cols = [txnPkCol, txnProdCol, 'customer_id', 'customer_username', 'customer_name', 'address', 'gcash_ref', 'payment_proof', 'total', 'status', 'payment_method'];
+    const vals = [
       txnId,
+      primaryProductId || null,
       customerId || null,
       customerUsername || null,
       customerName || 'Customer',
@@ -370,10 +386,21 @@ app.post('/api/checkout', async (req, res) => {
       gcashRef || 'SCREENSHOT_ATTACHED',
       paymentProof || null,
       parseFloat(total) || 0,
-      JSON.stringify(items),
       status || 'Pending',
       paymentMethod || 'GCash'
-    ]);
+    ];
+
+    if (DB_COLS.transactions.hasItems) {
+      cols.push('items');
+      vals.push(JSON.stringify(items || []));
+    }
+
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+    const txnQuery = `
+      INSERT INTO transactions (${cols.join(', ')})
+      VALUES (${placeholders})
+    `;
+    await client.query(txnQuery, vals);
 
     for (const item of items) {
       const itemId = item.id || item.ProductID;
@@ -403,13 +430,38 @@ app.post('/api/checkout', async (req, res) => {
 // GET: Fetch transactions
 app.get('/api/transactions', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM transactions ORDER BY date_created DESC');
+    const result = await pool.query(`
+      SELECT t.*, p.name AS product_name 
+      FROM transactions t 
+      LEFT JOIN products p ON (t."ProductID" = p."ProductID" OR t."ProductID" = p.barcode)
+      ORDER BY t.date_created DESC
+    `);
     const rows = result.rows.map(row => {
       const tid = row.TransactionID || row.transactionid || row.id;
+      const pid = row.ProductID || row.productid;
+      let items = row.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (_) { items = []; }
+      }
+      if (!items || (Array.isArray(items) && items.length === 0)) {
+        if (pid) {
+          items = [{
+            id: pid,
+            ProductID: pid,
+            name: row.product_name || `Product (${pid})`,
+            qty: 1,
+            price: parseFloat(row.total || 0)
+          }];
+        } else {
+          items = [];
+        }
+      }
       return {
         ...row,
         id: tid,
-        TransactionID: tid
+        TransactionID: tid,
+        ProductID: pid,
+        items
       };
     });
     res.json(rows);
@@ -567,17 +619,39 @@ app.get('/api/customer/orders/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(
-      `SELECT * FROM transactions 
-       WHERE LOWER(customer_username) = LOWER($1) 
-       ORDER BY date_created DESC`,
+      `SELECT t.*, p.name AS product_name 
+       FROM transactions t 
+       LEFT JOIN products p ON (t."ProductID" = p."ProductID" OR t."ProductID" = p.barcode)
+       WHERE LOWER(t.customer_username) = LOWER($1) 
+       ORDER BY t.date_created DESC`,
       [username.trim()]
     );
     const rows = result.rows.map(row => {
       const tid = row.TransactionID || row.transactionid || row.id;
+      const pid = row.ProductID || row.productid;
+      let items = row.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (_) { items = []; }
+      }
+      if (!items || (Array.isArray(items) && items.length === 0)) {
+        if (pid) {
+          items = [{
+            id: pid,
+            ProductID: pid,
+            name: row.product_name || `Product (${pid})`,
+            qty: 1,
+            price: parseFloat(row.total || 0)
+          }];
+        } else {
+          items = [];
+        }
+      }
       return {
         ...row,
         id: tid,
-        TransactionID: tid
+        TransactionID: tid,
+        ProductID: pid,
+        items
       };
     });
     res.json(rows);

@@ -12,13 +12,16 @@ CREATE TABLE IF NOT EXISTS products (
 
 CREATE TABLE IF NOT EXISTS transactions (
     "TransactionID" VARCHAR(100) PRIMARY KEY,
+    "ProductID" VARCHAR(100) REFERENCES products("ProductID"),
+    customer_id VARCHAR(100),
+    customer_username VARCHAR(100),
     customer_name VARCHAR(255) NOT NULL DEFAULT 'Guest Customer',
     address TEXT NOT NULL,
     gcash_ref VARCHAR(255) DEFAULT 'SCREENSHOT_ATTACHED',
     payment_proof TEXT,
     total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-    items JSONB NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+    payment_method VARCHAR(50) DEFAULT 'GCash',
     date_created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -50,11 +53,13 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "ProductID" VARCHAR(100) REFERENCES products("ProductID");
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100);
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_username VARCHAR(100);
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'GCash';
 
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+CREATE INDEX IF NOT EXISTS idx_transactions_productid ON transactions("ProductID");
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date_created DESC);
 CREATE INDEX IF NOT EXISTS idx_customers_username ON customers(LOWER(username));
