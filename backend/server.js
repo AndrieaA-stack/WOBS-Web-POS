@@ -246,6 +246,9 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'Welcomepage.html'));
 });
+app.get('/normalization', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'normalization.html'));
+});
 
 
 // ==================== HEALTH & PRODUCT ROUTES ====================
