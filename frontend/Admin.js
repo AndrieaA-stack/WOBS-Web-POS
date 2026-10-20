@@ -428,6 +428,76 @@ function renderTransactionsTable() {
   renderWalkinTransactionsTable(walkinTxns);
 }
 
+// ==================== PAGINATION HELPERS (10 rows per page) ====================
+const PAGINATION_SIZE = 10;
+const paginationState = {};
+
+function getPageSlice(list, key) {
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGINATION_SIZE));
+  let page = paginationState[key] || 1;
+  if (page > totalPages) page = totalPages;
+  paginationState[key] = page;
+  const start = (page - 1) * PAGINATION_SIZE;
+  return list.slice(start, start + PAGINATION_SIZE);
+}
+
+function renderPager(containerId, key, totalItems, onChange) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const totalPages = Math.ceil(totalItems / PAGINATION_SIZE);
+  if (totalPages <= 1) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const current = paginationState[key] || 1;
+  el.innerHTML = '';
+
+  const addBtn = (label, page, opts = {}) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'page-btn' + (opts.active ? ' active' : '');
+    btn.innerHTML = label;
+    btn.disabled = !!opts.disabled;
+    if (!opts.disabled && !opts.active) {
+      btn.addEventListener('click', () => {
+        paginationState[key] = page;
+        onChange();
+      });
+    }
+    el.appendChild(btn);
+  };
+
+  const addGap = () => {
+    const gap = document.createElement('span');
+    gap.className = 'page-gap';
+    gap.textContent = '…';
+    el.appendChild(gap);
+  };
+
+  addBtn('&laquo; Prev', current - 1, { disabled: current === 1 });
+
+  // Show every page number when few; otherwise first, last and a window around current
+  for (let p = 1; p <= totalPages; p++) {
+    const nearCurrent = Math.abs(p - current) <= 2;
+    if (totalPages <= 8 || p === 1 || p === totalPages || nearCurrent) {
+      addBtn(String(p), p, { active: p === current });
+    } else if (p === current - 3 || p === current + 3) {
+      addGap();
+    }
+  }
+
+  addBtn('Next &raquo;', current + 1, { disabled: current === totalPages });
+
+  const info = document.createElement('div');
+  info.className = 'page-info';
+  const from = (current - 1) * PAGINATION_SIZE + 1;
+  const to = Math.min(current * PAGINATION_SIZE, totalItems);
+  info.textContent = `Showing ${from}-${to} of ${totalItems}`;
+  el.appendChild(info);
+}
+
 function renderOnlineOrdersTable(orders) {
   const tbody = document.getElementById('admin-txns-list');
   if (!tbody) return;
@@ -442,10 +512,12 @@ function renderOnlineOrdersTable(orders) {
         </td>
       </tr>
     `;
+    const pager = document.getElementById('admin-txns-pager');
+    if (pager) pager.innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = orders.map(txn => {
+  tbody.innerHTML = getPageSlice(orders, 'online').map(txn => {
     let items = [];
     try {
       items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
@@ -505,6 +577,8 @@ function renderOnlineOrdersTable(orders) {
       </tr>
     `;
   }).join('');
+
+  renderPager('admin-txns-pager', 'online', orders.length, () => renderOnlineOrdersTable(orders));
 }
 
 function renderWalkinTransactionsTable(walkins) {
@@ -521,10 +595,12 @@ function renderWalkinTransactionsTable(walkins) {
         </td>
       </tr>
     `;
+    const pager = document.getElementById('admin-walkin-pager');
+    if (pager) pager.innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = walkins.map(txn => {
+  tbody.innerHTML = getPageSlice(walkins, 'walkin').map(txn => {
     let items = [];
     try {
       items = typeof txn.items === 'string' ? JSON.parse(txn.items) : (txn.items || []);
@@ -569,6 +645,8 @@ function renderWalkinTransactionsTable(walkins) {
       </tr>
     `;
   }).join('');
+
+  renderPager('admin-walkin-pager', 'walkin', walkins.length, () => renderWalkinTransactionsTable(walkins));
 }
 
 function reprintWalkinReceipt(txnId) {
