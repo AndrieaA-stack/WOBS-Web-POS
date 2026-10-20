@@ -42,21 +42,66 @@ pool.on('error', (err) => {
   console.error('Unexpected pool error on idle client:', err);
 });
 
+// Dynamic primary key column map for updated database schema (ProductID, CustomerID, AdminID, PendingAdminID, TransactionID)
+const DB_COLS = {
+  products: { id: '"ProductID"' },
+  customers: { id: '"CustomerID"' },
+  admin_accounts: { id: '"AdminID"' },
+  pending_admin_accounts: { id: '"PendingAdminID"' },
+  transactions: { id: '"TransactionID"' },
+};
+
+// Auto-detect exact column casing from database
+async function detectDatabaseColumns() {
+  try {
+    const res = await pool.query(`
+      SELECT table_name, column_name 
+      FROM information_schema.columns 
+      WHERE table_name IN ('products', 'customers', 'admin_accounts', 'pending_admin_accounts', 'transactions')
+    `);
+    
+    for (const row of res.rows) {
+      const t = row.table_name;
+      const c = row.column_name;
+      const cLower = c.toLowerCase();
+
+      if (t === 'products' && (cLower === 'productid' || cLower === 'id')) {
+        DB_COLS.products.id = `"${c}"`;
+      }
+      if (t === 'customers' && (cLower === 'customerid' || cLower === 'id')) {
+        DB_COLS.customers.id = `"${c}"`;
+      }
+      if (t === 'admin_accounts' && (cLower === 'adminid' || cLower === 'id')) {
+        DB_COLS.admin_accounts.id = `"${c}"`;
+      }
+      if (t === 'pending_admin_accounts' && (cLower === 'pendingadminid' || cLower === 'id')) {
+        DB_COLS.pending_admin_accounts.id = `"${c}"`;
+      }
+      if (t === 'transactions' && (cLower === 'transactionid' || cLower === 'id')) {
+        DB_COLS.transactions.id = `"${c}"`;
+      }
+    }
+    console.log("🔍 Detected Database Primary Key Column Mapping:", DB_COLS);
+  } catch (err) {
+    console.warn("⚠️ Column detection note (using standard mappings):", err.message);
+  }
+}
+
 // Automatic Database Schema Migration & Verification
 async function initDatabaseSchema() {
   try {
-    console.log("🔄 Ensuring database schema and tables are initialized...");
+    console.log("🔄 Ensuring database schema and tables are initialized with updated column keys...");
 
-    // 1. Ensure products table
+    // 1. Ensure products table with ProductID
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
-        id VARCHAR(100) PRIMARY KEY,
+        "ProductID" VARCHAR(100) PRIMARY KEY,
         barcode VARCHAR(100),
         name VARCHAR(255) NOT NULL,
         category VARCHAR(100),
-        cost NUMERIC(10, 2) NOT NULL,
-        price NUMERIC(10, 2) NOT NULL,
-        stock INTEGER NOT NULL,
+        cost NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+        price NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+        stock INTEGER NOT NULL DEFAULT 0,
         expiry DATE,
         image TEXT,
         image_url TEXT,
@@ -64,17 +109,17 @@ async function initDatabaseSchema() {
       );
     `);
 
-    // 2. Ensure transactions table
+    // 2. Ensure transactions table with TransactionID
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transactions (
-        id VARCHAR(100) PRIMARY KEY,
+        "TransactionID" VARCHAR(100) PRIMARY KEY,
         customer_id VARCHAR(100),
         customer_username VARCHAR(100),
         customer_name VARCHAR(150),
         address TEXT,
         gcash_ref VARCHAR(100),
         payment_proof TEXT,
-        total NUMERIC(10, 2) NOT NULL,
+        total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
         items JSONB NOT NULL,
         status VARCHAR(50) DEFAULT 'Pending',
         payment_method VARCHAR(50) DEFAULT 'GCash',
@@ -82,17 +127,10 @@ async function initDatabaseSchema() {
       );
     `);
 
-    // 3. Ensure transactions columns if table already existed without them
-    await pool.query(`
-      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100);
-      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_username VARCHAR(100);
-      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'GCash';
-    `);
-
-    // 4. Ensure customers table
+    // 3. Ensure customers table with CustomerID
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
-        id VARCHAR(100) PRIMARY KEY,
+        "CustomerID" VARCHAR(100) PRIMARY KEY,
         fullname VARCHAR(150) NOT NULL,
         username VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
@@ -104,21 +142,77 @@ async function initDatabaseSchema() {
       );
     `);
 
-    // 5. Ensure admin_accounts table
+    // 4. Ensure admin_accounts table with AdminID
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admin_accounts (
-        id SERIAL PRIMARY KEY,
+        "AdminID" SERIAL PRIMARY KEY,
         fullname VARCHAR(150) NOT NULL,
         username VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        status VARCHAR(50) DEFAULT 'pending',
+        status VARCHAR(50) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    console.log("✅ Database schema verified & tables initialized successfully!");
+    // 5. Ensure pending_admin_accounts table with PendingAdminID
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_admin_accounts (
+        "PendingAdminID" SERIAL PRIMARY KEY,
+        fullname VARCHAR(150) NOT NULL,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 6. Safe Column Renaming Migration (id -> ProductID, CustomerID, AdminID, PendingAdminID, TransactionID)
+    await pool.query(`
+      DO $$ 
+      BEGIN 
+        -- customers: id -> CustomerID
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customers' AND column_name='id') 
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customers' AND LOWER(column_name)='customerid') THEN
+          ALTER TABLE customers RENAME COLUMN id TO "CustomerID";
+        END IF;
+
+        -- products: id -> ProductID
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='id') 
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND LOWER(column_name)='productid') THEN
+          ALTER TABLE products RENAME COLUMN id TO "ProductID";
+        END IF;
+
+        -- transactions: id -> TransactionID
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='id') 
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND LOWER(column_name)='transactionid') THEN
+          ALTER TABLE transactions RENAME COLUMN id TO "TransactionID";
+        END IF;
+
+        -- admin_accounts: id -> AdminID
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admin_accounts' AND column_name='id') 
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admin_accounts' AND LOWER(column_name)='adminid') THEN
+          ALTER TABLE admin_accounts RENAME COLUMN id TO "AdminID";
+        END IF;
+
+        -- pending_admin_accounts: id -> PendingAdminID
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pending_admin_accounts' AND column_name='id') 
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pending_admin_accounts' AND LOWER(column_name)='pendingadminid') THEN
+          ALTER TABLE pending_admin_accounts RENAME COLUMN id TO "PendingAdminID";
+        END IF;
+
+        -- transactions optional columns
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_username VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'GCash';
+      END $$;
+    `);
+
+    // Detect actual column names after migration
+    await detectDatabaseColumns();
+
+    console.log("✅ Database schema verified & primary key columns updated successfully!");
   } catch (err) {
     console.error("⚠️ Database schema initialization note:", err.message);
+    await detectDatabaseColumns();
   }
 }
 
@@ -150,7 +244,15 @@ app.get('/api/health', (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
-    res.json(result.rows);
+    const rows = result.rows.map(row => {
+      const pid = row.ProductID || row.productid || row.id;
+      return {
+        ...row,
+        id: pid,
+        ProductID: pid
+      };
+    });
+    res.json(rows);
   } catch (err) {
     console.error("Error fetching products:", err);
     res.status(500).json({ error: 'Failed to fetch products: ' + err.message });
@@ -159,16 +261,18 @@ app.get('/api/products', async (req, res) => {
 
 // POST: Add or Edit product entry (UPSERT on conflict)
 app.post('/api/products', async (req, res) => {
-  const { id, barcode, name, category, cost, price, stock, expiry, image } = req.body;
+  const { id, ProductID, barcode, name, category, cost, price, stock, expiry, image } = req.body;
+  const productId = ProductID || id || ('prod_' + Date.now());
 
   const formattedExpiry = (expiry && String(expiry).trim() !== '' && expiry !== 'null') ? expiry : null;
   const formattedImage = (image && String(image).trim() !== '' && image !== 'null') ? image : null;
 
   try {
+    const pkCol = DB_COLS.products.id;
     const query = `
-      INSERT INTO products (id, barcode, name, category, cost, price, stock, expiry, image)
+      INSERT INTO products (${pkCol}, barcode, name, category, cost, price, stock, expiry, image)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (id) DO UPDATE SET
+      ON CONFLICT (${pkCol}) DO UPDATE SET
         barcode = EXCLUDED.barcode,
         name = EXCLUDED.name,
         category = EXCLUDED.category,
@@ -180,7 +284,7 @@ app.post('/api/products', async (req, res) => {
     `;
 
     await pool.query(query, [
-      id,
+      productId,
       barcode,
       name,
       category,
@@ -191,7 +295,7 @@ app.post('/api/products', async (req, res) => {
       formattedImage
     ]);
 
-    res.json({ success: true, message: 'Product saved to database successfully' });
+    res.json({ success: true, message: 'Product saved to database successfully', ProductID: productId, id: productId });
   } catch (err) {
     console.error("❌ POSTGRESQL ERROR:", err.message);
     res.status(500).json({ success: false, error: 'Failed to save product: ' + err.message });
@@ -202,7 +306,8 @@ app.post('/api/products', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM products WHERE id = $1', [id]);
+    const pkCol = DB_COLS.products.id;
+    await pool.query(`DELETE FROM products WHERE ${pkCol} = $1`, [id]);
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (err) {
     console.error("Error deleting product:", err);
@@ -216,6 +321,7 @@ app.delete('/api/products/:id', async (req, res) => {
 app.post('/api/checkout', async (req, res) => {
   const {
     id,
+    TransactionID,
     customerId,
     customerUsername,
     customerName,
@@ -227,6 +333,8 @@ app.post('/api/checkout', async (req, res) => {
     paymentMethod,
     status
   } = req.body;
+
+  const txnId = TransactionID || id || ('WOBS-' + Math.floor(100000 + Math.random() * 900000));
 
   const isWalkin = address && (
     address.toLowerCase().includes('walk-in') || 
@@ -246,12 +354,15 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    const txnPkCol = DB_COLS.transactions.id;
+    const prodPkCol = DB_COLS.products.id;
+
     const txnQuery = `
-      INSERT INTO transactions (id, customer_id, customer_username, customer_name, address, gcash_ref, payment_proof, total, items, status, payment_method)
+      INSERT INTO transactions (${txnPkCol}, customer_id, customer_username, customer_name, address, gcash_ref, payment_proof, total, items, status, payment_method)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `;
     await client.query(txnQuery, [
-      id,
+      txnId,
       customerId || null,
       customerUsername || null,
       customerName || 'Customer',
@@ -264,22 +375,22 @@ app.post('/api/checkout', async (req, res) => {
       paymentMethod || 'GCash'
     ]);
 
-
     for (const item of items) {
+      const itemId = item.id || item.ProductID;
       const updateStockQuery = `
         UPDATE products 
         SET stock = stock - $1 
-        WHERE id = $2 AND stock >= $1
+        WHERE ${prodPkCol} = $2 AND stock >= $1
       `;
-      const result = await client.query(updateStockQuery, [item.qty, item.id]);
+      const result = await client.query(updateStockQuery, [item.qty, itemId]);
       if (result.rowCount === 0) {
-        throw new Error(`Insufficient stock or item not found for ID: ${item.id}`);
+        throw new Error(`Insufficient stock or item not found for ID: ${itemId}`);
       }
     }
 
     await client.query('COMMIT');
 
-    res.status(200).json({ message: 'Order processed successfully', txnId: id });
+    res.status(200).json({ message: 'Order processed successfully', txnId, id: txnId, TransactionID: txnId });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error("❌ Transaction Error:", err.message);
@@ -293,7 +404,15 @@ app.post('/api/checkout', async (req, res) => {
 app.get('/api/transactions', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions ORDER BY date_created DESC');
-    res.json(result.rows);
+    const rows = result.rows.map(row => {
+      const tid = row.TransactionID || row.transactionid || row.id;
+      return {
+        ...row,
+        id: tid,
+        TransactionID: tid
+      };
+    });
+    res.json(rows);
   } catch (err) {
     console.error("Error fetching transactions:", err);
     res.status(500).json({ error: 'Failed to fetch transactions: ' + err.message });
@@ -305,12 +424,13 @@ app.put('/api/transactions/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   const cleanId = String(id).replace('WOBS-', '').replace('#', '');
+  const txnPkCol = DB_COLS.transactions.id;
 
   try {
     const query = `
       UPDATE transactions 
       SET status = $1 
-      WHERE id LIKE $2 OR id = $3
+      WHERE ${txnPkCol} LIKE $2 OR ${txnPkCol} = $3
     `;
     const result = await pool.query(query, [status, `%${cleanId}%`, id]);
 
@@ -369,8 +489,10 @@ app.post('/api/customer/register', async (req, res) => {
     }
 
     const customerId = "cust_" + Date.now();
+    const custPkCol = DB_COLS.customers.id;
+
     await pool.query(
-      `INSERT INTO customers (id, fullname, username, password, phone, city, barangay, street)
+      `INSERT INTO customers (${custPkCol}, fullname, username, password, phone, city, barangay, street)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         customerId,
@@ -386,6 +508,7 @@ app.post('/api/customer/register', async (req, res) => {
 
     const user = {
       id: customerId,
+      CustomerID: customerId,
       fullname: fullname.trim(),
       username: username.trim(),
       phone: phone ? phone.trim() : '',
@@ -401,7 +524,7 @@ app.post('/api/customer/register', async (req, res) => {
   }
 });
 
-// POST: Customer Login
+// POST: Customer Login (Fixed for updated CustomerID column key)
 app.post('/api/customer/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -410,7 +533,7 @@ app.post('/api/customer/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, fullname, username, phone, city, barangay, street 
+      `SELECT * 
        FROM customers 
        WHERE LOWER(username) = LOWER($1) AND password = $2`,
       [username.trim(), password]
@@ -420,11 +543,22 @@ app.post('/api/customer/login', async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid customer username or password." });
     }
 
-    const user = result.rows[0];
+    const row = result.rows[0];
+    const customerId = row.CustomerID || row.customerid || row.id;
+    const user = {
+      id: customerId,
+      CustomerID: customerId,
+      fullname: row.fullname,
+      username: row.username,
+      phone: row.phone || '',
+      city: row.city || '',
+      barangay: row.barangay || '',
+      street: row.street || ''
+    };
     res.json({ success: true, message: "Welcome back!", user });
   } catch (err) {
     console.error("Customer login error:", err);
-    res.status(500).json({ success: false, message: "Database connection failed." });
+    res.status(500).json({ success: false, message: "Customer login failed: " + err.message });
   }
 });
 
@@ -438,7 +572,15 @@ app.get('/api/customer/orders/:username', async (req, res) => {
        ORDER BY date_created DESC`,
       [username.trim()]
     );
-    res.json(result.rows);
+    const rows = result.rows.map(row => {
+      const tid = row.TransactionID || row.transactionid || row.id;
+      return {
+        ...row,
+        id: tid,
+        TransactionID: tid
+      };
+    });
+    res.json(rows);
   } catch (err) {
     console.error("Fetch customer orders error:", err);
     res.status(500).json({ error: "Failed to fetch orders: " + err.message });
@@ -472,11 +614,20 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid username or password." });
     }
 
-    const user = result.rows[0];
-    res.json({ success: true, user: { username: user.username, fullname: user.fullname } });
+    const row = result.rows[0];
+    const adminId = row.AdminID || row.adminid || row.id;
+    res.json({
+      success: true,
+      user: {
+        id: adminId,
+        AdminID: adminId,
+        username: row.username,
+        fullname: row.fullname
+      }
+    });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ success: false, message: "Database connection failed." });
+    res.status(500).json({ success: false, message: "Database connection failed: " + err.message });
   }
 });
 
@@ -499,18 +650,26 @@ app.post('/api/admin/register', async (req, res) => {
     res.json({ success: true, message: "Registration request submitted for approval." });
   } catch (err) {
     console.error("Registration error:", err);
-    res.status(500).json({ success: false, message: "Failed to submit request." });
+    res.status(500).json({ success: false, message: "Failed to submit request: " + err.message });
   }
 });
 
 // GET: Fetch Pending Admin Requests
 app.get('/api/admin/pending', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, fullname, username, requested_at FROM pending_admin_accounts ORDER BY requested_at ASC`);
-    res.json(result.rows);
+    const result = await pool.query(`SELECT * FROM pending_admin_accounts ORDER BY requested_at ASC`);
+    const rows = result.rows.map(row => {
+      const pid = row.PendingAdminID || row.pendingadminid || row.id;
+      return {
+        ...row,
+        id: pid,
+        PendingAdminID: pid
+      };
+    });
+    res.json(rows);
   } catch (err) {
     console.error("Fetch pending error:", err);
-    res.status(500).json({ error: "Failed to fetch pending requests." });
+    res.status(500).json({ error: "Failed to fetch pending requests: " + err.message });
   }
 });
 
@@ -518,10 +677,11 @@ app.get('/api/admin/pending', async (req, res) => {
 app.put('/api/admin/approve/:id', async (req, res) => {
   const { id } = req.params;
   const { action } = req.body;
+  const pendingPkCol = DB_COLS.pending_admin_accounts.id;
 
   try {
     if (action === 'APPROVED') {
-      const pendingRes = await pool.query(`SELECT * FROM pending_admin_accounts WHERE id = $1`, [id]);
+      const pendingRes = await pool.query(`SELECT * FROM pending_admin_accounts WHERE ${pendingPkCol} = $1`, [id]);
       if (pendingRes.rows.length === 0) {
         return res.status(404).json({ error: "Pending request not found." });
       }
@@ -533,15 +693,15 @@ app.put('/api/admin/approve/:id', async (req, res) => {
         [pendingUser.fullname, pendingUser.username, pendingUser.password]
       );
 
-      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
+      await pool.query(`DELETE FROM pending_admin_accounts WHERE ${pendingPkCol} = $1`, [id]);
     } else {
-      await pool.query(`DELETE FROM pending_admin_accounts WHERE id = $1`, [id]);
+      await pool.query(`DELETE FROM pending_admin_accounts WHERE ${pendingPkCol} = $1`, [id]);
     }
 
     res.json({ success: true });
   } catch (err) {
     console.error("Approval error:", err);
-    res.status(500).json({ error: "Action failed." });
+    res.status(500).json({ error: "Action failed: " + err.message });
   }
 });
 
@@ -555,10 +715,12 @@ async function startServer() {
     try {
       const schema = await fs.readFile(schemaPath, 'utf8');
       await pool.query(schema);
-      console.log('✅ Database schema initialized');
+      console.log('✅ Database schema initialized from schema.sql');
     } catch (schemaErr) {
       console.warn('⚠️ Could not run schema.sql (skipping if tables exist):', schemaErr.message);
     }
+
+    await initDatabaseSchema();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);

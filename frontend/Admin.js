@@ -340,6 +340,7 @@ async function saveProduct() {
 
   const productPayload = {
     id: document.getElementById('prod-id').value,
+    ProductID: document.getElementById('prod-id').value,
     barcode: barcodeVal,
     name: nameVal,
     category: categoryVal,
@@ -2010,6 +2011,7 @@ async function processAdminPosCheckout() {
 
   const checkoutPayload = {
     id: txnId,
+    TransactionID: txnId,
     customerId: null,
     customerUsername: null,
     customerName: customerName,

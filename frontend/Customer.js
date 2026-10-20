@@ -861,10 +861,12 @@ async function processGCashPayment() {
       return;
     }
 
+    const newTxnId = 'WOBS-' + Math.floor(100000 + Math.random() * 900000);
     const newTxn = {
-      id: 'WOBS-' + Math.floor(100000 + Math.random() * 900000),
-      customerId: customer.id,
-      customerUsername: customer.username,
+      id: newTxnId,
+      TransactionID: newTxnId,
+      customerId: customer ? (customer.CustomerID || customer.id) : null,
+      customerUsername: customer ? customer.username : null,
       customerName: name,
       address: fullAddress,
       items: cart,

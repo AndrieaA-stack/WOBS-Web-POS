@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS products (
-    id VARCHAR(100) PRIMARY KEY,
+    "ProductID" VARCHAR(100) PRIMARY KEY,
     barcode VARCHAR(100) UNIQUE,
     name VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
-    id VARCHAR(100) PRIMARY KEY,
+    "TransactionID" VARCHAR(100) PRIMARY KEY,
     customer_name VARCHAR(255) NOT NULL DEFAULT 'Guest Customer',
     address TEXT NOT NULL,
     gcash_ref VARCHAR(255) DEFAULT 'SCREENSHOT_ATTACHED',
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 CREATE TABLE IF NOT EXISTS admin_accounts (
-    id SERIAL PRIMARY KEY,
+    "AdminID" SERIAL PRIMARY KEY,
     fullname VARCHAR(255) NOT NULL,
     username VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS admin_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS pending_admin_accounts (
-    id SERIAL PRIMARY KEY,
+    "PendingAdminID" SERIAL PRIMARY KEY,
     fullname VARCHAR(255) NOT NULL,
     username VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS pending_admin_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS customers (
-    id VARCHAR(100) PRIMARY KEY,
+    "CustomerID" VARCHAR(100) PRIMARY KEY,
     fullname VARCHAR(255) NOT NULL,
     username VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -63,4 +63,3 @@ CREATE INDEX IF NOT EXISTS idx_transactions_customer_username ON transactions(cu
 INSERT INTO admin_accounts (fullname, username, password)
 VALUES ('Administrator', 'admin', 'password123')
 ON CONFLICT (username) DO NOTHING;
-
