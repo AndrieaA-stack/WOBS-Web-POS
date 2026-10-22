@@ -577,15 +577,22 @@ async function loadCustomerOrders() {
               <span style="color:#64748b;">Delivery Address:</span> ${order.address || 'N/A'}
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #e2e8f0; padding-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #e2e8f0; padding-top:8px; flex-wrap:wrap; gap:8px;">
               <div>
                 <span style="font-size:12px; color:#64748b;">Total Amount:</span>
                 <strong style="font-size:15px; color:#16a34a; margin-left:4px;">₱${total}</strong>
                 <span style="font-size:11px; color:#64748b; margin-left:6px;">(GCash)</span>
               </div>
-              <button onclick="viewCustomerOrderReceipt('${orderSafeJson}')" class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 10px;">
-                <i class="fa-solid fa-receipt" style="margin-right:4px;"></i> View Receipt
-              </button>
+              <div style="display:flex; align-items:center; gap:6px;">
+                ${status === 'DELIVERED' ? `
+                  <button onclick="confirmOrderReceived('${order.id}')" class="btn btn-sm" style="font-size:11px; padding:5px 12px; background:#16a34a; color:#ffffff; border:none; border-radius:6px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow: 0 1px 2px rgba(22, 163, 74, 0.3);">
+                    <i class="fa-solid fa-box-open"></i> Order Received
+                  </button>
+                ` : ''}
+                <button onclick="viewCustomerOrderReceipt('${orderSafeJson}')" class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 10px;">
+                  <i class="fa-solid fa-receipt" style="margin-right:4px;"></i> View Receipt
+                </button>
+              </div>
             </div>
           </div>
         `;
@@ -608,6 +615,59 @@ function viewCustomerOrderReceipt(encodedOrder) {
     openReceiptModal(order);
   } catch (e) {
     console.error("Receipt parsing error:", e);
+  }
+}
+
+async function confirmOrderReceived(rawOrderId) {
+  const cleanId = String(rawOrderId).replace('WOBS-', '').replace('#', '').trim();
+  const displayId = String(rawOrderId).startsWith('#') ? rawOrderId : `#${rawOrderId}`;
+
+  const confirmed = confirm(`Have you received your order (${displayId})?\n\nClick OK to confirm that your items were delivered safely.`);
+  if (!confirmed) return;
+
+  try {
+    // 1. Sync with backend API
+    const res = await fetch(`${API_URL}/transactions/${cleanId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Completed' })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to update order status on server');
+    }
+
+    // 2. Also update localStorage transactions if present
+    try {
+      const localTxns = JSON.parse(localStorage.getItem('wobs_transactions') || '[]');
+      const updatedLocal = localTxns.map(t => {
+        const tId = String(t.id).replace('WOBS-', '').replace('#', '').trim();
+        if (tId === cleanId) {
+          return { ...t, status: 'Completed' };
+        }
+        return t;
+      });
+      localStorage.setItem('wobs_transactions', JSON.stringify(updatedLocal));
+    } catch (e) {
+      console.warn("Could not sync localStorage transactions:", e);
+    }
+
+    alert(`🎉 Order ${displayId} marked as Completed!\n\nThank you for ordering from Laura Sari-Sari Store!`);
+
+    // 3. Refresh the My Orders list
+    await loadCustomerOrders();
+
+    // 4. If the status lookup modal is currently open with this transaction, refresh it
+    const trackInput = document.getElementById('track-txn-id');
+    if (trackInput && trackInput.value && trackInput.value.includes(cleanId)) {
+      if (typeof checkOrderStatus === 'function') {
+        checkOrderStatus();
+      }
+    }
+  } catch (err) {
+    console.error("Error confirming order received:", err);
+    alert(`❌ Failed to update order status: ${err.message}`);
   }
 }
 
@@ -1105,6 +1165,18 @@ async function checkOrderStatus() {
         badge.style.background = '#ef4444'; // Red
       } else {
         badge.style.background = '#0284c7'; // Blue (Pending)
+      }
+
+      // Order Received action when Delivered
+      const receivedAction = document.getElementById('status-received-container');
+      const receivedBtn = document.getElementById('btn-status-received');
+      if (receivedAction && receivedBtn) {
+        if (statusText === 'DELIVERED') {
+          receivedAction.classList.remove('hidden');
+          receivedBtn.onclick = () => confirmOrderReceived(txn.id);
+        } else {
+          receivedAction.classList.add('hidden');
+        }
       }
 
       resultBox.classList.remove('hidden');
